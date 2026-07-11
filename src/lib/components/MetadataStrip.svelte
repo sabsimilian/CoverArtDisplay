@@ -15,15 +15,17 @@
 
   const style = $derived(backgroundStyle(settings.value));
 
-  // Cover Image also extracts a palette, same as Gradient — using the plain
-  // static color as its base made the "color mixed with cover art" look too
-  // subtle/muddy to actually notice next to Gradient's own vibrant colors,
-  // especially with the default near-black background color. The extracted
-  // palette is far more consistently visible regardless of that setting.
+  // Only Gradient extracts a colorthief palette now — Cover Image used to
+  // share this (as a base sitting under the blurred cover at 65% opacity),
+  // but that made the extracted palette's own colors dominate and the two
+  // styles ended up looking nearly identical. Cover Image is supposed to
+  // read as "the actual cover art, extended outward and blurred" — an image
+  // effect, not a color effect — so it needs the real photo at high opacity,
+  // not colorthief's abstraction of it.
   $effect(() => {
     const url = coverUrl;
     const currentStyle = style;
-    if ((currentStyle !== "gradient" && currentStyle !== "coverimage") || !url) {
+    if (currentStyle !== "gradient" || !url) {
       gradient = null;
       return;
     }
@@ -37,18 +39,12 @@
   });
 
   // The base layer always paints a background (matches the OG app: it sets
-  // this baseline on every style, not just Static). Gradient and Cover Image
-  // both use the extracted palette; Static uses the plain user-picked color.
-  // Cover Image layers the blurred cover on top as a CHILD, at a fixed 65%
-  // opacity (baked into the filter function, never the `opacity` property —
-  // combining that with `blur()` on one element is what made this look stuck
-  // before), so the vibrant base color always shows through the blur
-  // clearly, regardless of the Transparent toggle. Transparent then fades the
-  // *whole group* (color + blurred cover together) toward the
-  // OS-transparent window, rather than replacing the mixed look with plain
-  // see-through.
+  // this baseline on every style, not just Static). Only Gradient uses the
+  // extracted palette; Static AND Cover Image both use the plain user-picked
+  // color — Cover Image's base is just a neutral backing behind the blurred
+  // cover (see below), never meant to be visible or notable on its own.
   const baseBg = $derived.by((): { color: string; image: string } => {
-    if (style === "gradient" || style === "coverimage") {
+    if (style === "gradient") {
       return gradient ? { color: "", image: gradient } : { color: settings.value.areaUnderCoverBgColor, image: "" };
     }
     return { color: settings.value.areaUnderCoverBgColor, image: "" };
@@ -68,13 +64,22 @@
     "
   >
     {#if style === "coverimage" && coverUrl}
+      <!-- Near-opaque (0.96, not 1) — the real point is for this to read as
+           "the cover art itself, extending outward and blurred" the way a
+           Spotify-style now-playing backdrop does, not a subtle tint. It's
+           scaled up 1.15x so blur()'s softened edges fall outside the
+           clipped (overflow:hidden) strip instead of showing as a
+           washed-out border. Opacity is baked into the filter function,
+           never the `opacity` property — combining that with blur() on one
+           element is what made this look "stuck" (unaffected by the
+           Transparent toggle) before. -->
       <div
         class="absolute inset-0 scale-[1.15]"
         style="
           background-image: url('{coverUrl}');
           background-size: cover;
           background-position: center;
-          filter: blur(40px) brightness(0.55) saturate(1.15) opacity(0.65);
+          filter: blur(40px) brightness(0.55) saturate(1.15) opacity(0.96);
         "
       ></div>
     {/if}
