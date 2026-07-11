@@ -942,6 +942,37 @@ pub fn run() {
                         }
                     }
                 });
+
+                // tauri-plugin-window-state only writes its saved-state file to
+                // disk on RunEvent::Exit — but closing this window (above) hides
+                // it to the tray instead of exiting, so the app can sit running
+                // in the background indefinitely and then get killed outright by
+                // a Windows shutdown/restart, with no graceful exit and thus no
+                // final save. Debounced-eager-saving on every move/resize means
+                // the on-disk file stays continuously current instead, so even
+                // an abrupt kill leaves a very recent (not stale-from-last-clean-
+                // exit) position/size behind for next launch to restore.
+                let debounce_id = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+                let app_handle = app.handle().clone();
+                win.on_window_event(move |event| {
+                    if !matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)) {
+                        return;
+                    }
+                    let this_id = debounce_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    let handle = app_handle.clone();
+                    let debounce_id = debounce_id.clone();
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+                        if debounce_id.load(std::sync::atomic::Ordering::SeqCst) == this_id {
+                            use tauri_plugin_window_state::AppHandleExt as _;
+                            let _ = handle.save_window_state(
+                                tauri_plugin_window_state::StateFlags::POSITION
+                                    | tauri_plugin_window_state::StateFlags::SIZE
+                                    | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                            );
+                        }
+                    });
+                });
             }
 
             Ok(())
