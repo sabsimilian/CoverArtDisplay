@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+/* Runtime-themable values (user-configurable accent color, font, and the
+   background-opacity system for the metadata strip) live as CSS custom
+   properties rather than Tailwind classes, since Tailwind's utilities are
+   generated at build time and these are set at runtime from user settings. */
+:root {
+  --app-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --accent-color: #1db954;
+  --area-bg-opacity: 1;
+}
+
+/* The OS window itself is always created with transparent:true (see
+   tauri.conf.json) — that has no visible effect on its own unless the page
+   content actually lets it show through. body stays transparent so the real
+   desktop shows through anywhere nothing has painted yet (e.g. before a cover
+   image has loaded); every view that should look "solid" (Loading/Login, the
+   settings popup) paints its own opaque background explicitly instead of
+   relying on body's. */
+body {
+  background: transparent;
+  color: white;
+  font-family: var(--app-font-family);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  /* Rounds the window itself, not just its content — the OS window is
+     transparent (see above), so clipping body's own corners to a radius
+     lets the real desktop show through them, giving the illusion of a
+     rounded native window in both normal and widget-sized modes. Excluded
+     for the settings popup (not OS-transparent, so rounding it would just
+     show square black corners poking out past the curve). */
+  border-radius: 12px;
+}
+body.settings-only {
+  border-radius: 0;
+}
+
+/* The settings popup window isn't OS-level transparent (unlike the main
+   window) — see the comment on this class's toggle in +layout.svelte. */
+body.settings-only {
+  background: #121212;
+}
+
+/* Draggable window title strip — the only way to move a decorations:false
+   window. Dragging is triggered explicitly (see TitleBarRegion.svelte's
+   mousedown handler); this just positions the strip. Stops short of the
+   right edge, leaving a real gap under AppMenu's 96px hover corner — a
+   drag-region's native hit-testing can win over a plain DOM z-index stack,
+   so the gear icon needs an actual gap here, not just a higher z-index. */
+.title-bar-region {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 96px;
+  height: 30px;
+  z-index: 1000;
+}
+
+/* Thin, dark scrollbar for the settings modal's scrollable panes — WebView2's
+   default scrollbar is the plain light OS one, which stands out badly against
+   this app's dark UI. Applied explicitly (not globally) to the few places
+   that actually scroll: the modal body and the video/photo folder lists. */
+.themed-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.themed-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.themed-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+}
+.themed-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Native <input type="color"> ships with its own internal padding/border
+   around the swatch — combined with our own border/radius classes that
+   produced a double-border "inset" look. Stripping the native chrome and
+   rebuilding it ourselves (matches the OG app's exact fix) removes that. */
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  background: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 8px;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 8px;
+}
+input[type="color"]:hover {
+  border-color: var(--accent-color);
+  transform: scale(1.06);
+}
+
+/* Themed <input type="range"> for the Text Opacity slider — the shared
+   "Change Interval" pill slider already has its own bespoke styling. */
+.themed-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  border-radius: 5px;
+  background: #444;
+  outline: none;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+.themed-range:hover {
+  opacity: 1;
+}
+.themed-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  cursor: pointer;
+}
+.themed-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-color);
+  cursor: pointer;
+}

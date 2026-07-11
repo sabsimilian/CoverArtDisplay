@@ -1,0 +1,36 @@
+[package]
+name = "spotify-cover-art-v2"
+version = "0.1.0"
+description = "Spotify Cover Art Display"
+edition = "2021"
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "spotify_cover_art_v2_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri            = { version = "2", features = ["protocol-asset", "tray-icon"] }
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-deep-link  = "2"
+tauri-plugin-shell      = "2"
+tauri-plugin-opener     = "2"
+tauri-plugin-dialog     = "2"
+tauri-plugin-autostart  = "2"
+tauri-plugin-window-state = "2"
+
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+tokio       = { version = "1", features = ["full"] }
+reqwest     = { version = "0.12", features = ["json"] }
+sha2        = "0.10"
+base64      = "0.22"
+hex         = "0.4"
+rand        = "0.8"
+urlencoding = "2"
+url         = "2"
