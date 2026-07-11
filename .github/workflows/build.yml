@@ -1,0 +1,69 @@
+name: Build
+
+# Manual for now — this is for pulling down test builds per platform, not an
+# auto-release pipeline. Add a `push: tags: ["v*"]` trigger (and a release
+# step) once you're ready to actually publish to GitHub Releases.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+          # Builds a universal binary (arm64 + x86_64 in one bundle) so it
+          # runs on both Apple Silicon and Intel Macs without needing to
+          # publish two separate downloads.
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+          # ubuntu-22.04, not ubuntu-latest — Tauri's own recommendation:
+          # newer Ubuntu versions ship a libwebkit2gtk-4.1 ABI that isn't
+          # guaranteed compatible with what an *older* end-user distro has
+          # installed, so building on the oldest still-supported LTS keeps
+          # the produced .deb/.AppImage broadly runnable.
+          - platform: ubuntu-22.04
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
+            libgtk-3-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ matrix.platform }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        with:
+          args: ${{ matrix.args }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.platform }}
+          path: |
+            src-tauri/target/**/bundle/**
+            !src-tauri/target/**/bundle/**/*.map
+          retention-days: 14
