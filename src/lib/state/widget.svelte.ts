@@ -50,6 +50,7 @@ function startIdleShuffle(): void {
 export async function enableWidgetMode(): Promise<void> {
   if (enabled) return;
   enabled = true;
+  settings.value = { ...settings.value, lastWidgetModeActive: true };
   if (!playback.isPlaying) startIdleShuffle();
   await appApi.enableWidgetMode();
 }
@@ -57,6 +58,7 @@ export async function enableWidgetMode(): Promise<void> {
 export async function disableWidgetMode(): Promise<void> {
   if (!enabled) return;
   enabled = false;
+  settings.value = { ...settings.value, lastWidgetModeActive: false };
   stopIdleShuffle();
   idleAlbum = null;
   await appApi.disableWidgetMode();

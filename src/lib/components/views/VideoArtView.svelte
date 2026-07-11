@@ -16,7 +16,11 @@
   });
 </script>
 
-<div class="flex h-full w-full items-center justify-center overflow-hidden">
+<!-- bg-black — otherwise, with no video configured (as on a fresh install),
+     this is just an empty transparent div and the OS-transparent window
+     shows the desktop straight through it behind the "No videos available"
+     text. Matches PictureFrameView's own fallback. -->
+<div class="flex h-full w-full items-center justify-center overflow-hidden bg-black">
   {#if standby.currentVideoUrl}
     <!-- svelte-ignore a11y_media_has_caption -->
     <video bind:this={videoEl} muted loop playsinline class="h-full w-full object-cover"></video>

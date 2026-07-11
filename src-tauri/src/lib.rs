@@ -859,16 +859,17 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent, None,
         ))
-        // Remembers the main window's desktop position and maximized state
-        // across launches — including full PC restarts, since this plugin
-        // persists to a JSON file in the app data dir, not anything
-        // session-scoped. Deliberately NOT SIZE: widget mode already resizes
-        // the window itself via explicit set_size() calls, and if a size
-        // saved while in widget mode got restored on next launch before the
-        // app's own widget-mode state caught up, the window would come up
-        // widget-sized while the rest of the app still thought it was in
-        // normal mode. Also NOT FULLSCREEN: restoring fullscreen=true on top
-        // of a stale saved position (e.g. from a monitor no longer connected)
+        // Remembers the main window's desktop position, size, and maximized
+        // state across launches — including full PC restarts, since this
+        // plugin persists to a JSON file in the app data dir, not anything
+        // session-scoped. SIZE now includes whatever size widget mode was
+        // last resized to: settings.svelte.ts's lastWidgetModeActive flag
+        // (set in widget.svelte.ts's enable/disable) makes sure the
+        // frontend re-enters widget mode on launch whenever the window was
+        // closed in it, so a restored widget-sized window always gets the
+        // matching compact UI instead of the full view crammed into it.
+        // Still NOT FULLSCREEN: restoring fullscreen=true on top of a stale
+        // saved position (e.g. from a monitor no longer connected)
         // reproducibly parked the window fully off-screen with no way back
         // short of editing the saved state file by hand — not worth the
         // risk for a toggle one click away in the gear menu. The "settings"
@@ -878,6 +879,7 @@ pub fn run() {
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(
                     tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::SIZE
                         | tauri_plugin_window_state::StateFlags::MAXIMIZED,
                 )
                 .with_denylist(&["settings"])

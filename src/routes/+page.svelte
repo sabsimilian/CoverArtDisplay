@@ -26,7 +26,11 @@
     if (settings.value.startInFullscreen) {
       setTimeout(() => appApi.toggleFullscreen(), 300);
     }
-    if (settings.value.startInWidgetMode) {
+    // startInWidgetMode is an explicit "always launch into widget mode"
+    // preference; lastWidgetModeActive instead just remembers whichever
+    // mode the window was actually in when last closed (see its definition
+    // in settings.svelte.ts) — either should resume widget mode.
+    if (settings.value.startInWidgetMode || settings.value.lastWidgetModeActive) {
       enableWidgetMode();
     }
     return () => stopPolling();

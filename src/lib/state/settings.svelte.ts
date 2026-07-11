@@ -37,6 +37,12 @@ export interface AppSettings {
   accentColor: string;
   controlsEnabled: boolean;
   progressBarEnabled: boolean;
+  // Distinct from startInWidgetMode (an explicit "always launch into widget
+  // mode" preference) — this instead just remembers whichever mode the
+  // window was actually in when last closed, so closing while in widget
+  // mode resumes there next launch instead of snapping back to the full
+  // view at the widget's small saved size.
+  lastWidgetModeActive: boolean;
 }
 
 const DEFAULTS: AppSettings = {
@@ -62,6 +68,7 @@ const DEFAULTS: AppSettings = {
   accentColor: "#1DB954",
   controlsEnabled: true,
   progressBarEnabled: true,
+  lastWidgetModeActive: false,
 };
 
 const store = persisted<AppSettings>("appSettings", DEFAULTS);
