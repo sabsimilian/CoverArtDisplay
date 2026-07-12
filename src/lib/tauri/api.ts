@@ -71,6 +71,14 @@ export const appApi = {
 
   enableWidgetMode: (): Promise<void> => invoke("enable_widget_mode"),
   disableWidgetMode: (): Promise<void> => invoke("disable_widget_mode"),
+  // Backed by a plain file (see set_last_widget_mode in lib.rs), not the
+  // localStorage-backed settings blob — this needs to survive an abrupt
+  // process kill (closing the window only hides it to the tray, so the app
+  // can be running hidden when Windows kills it during a shutdown), and
+  // localStorage's on-disk flush timing isn't guaranteed the way a direct
+  // file write is.
+  getLastWidgetMode: (): Promise<boolean> => invoke("get_last_widget_mode"),
+  setLastWidgetMode: (active: boolean): Promise<void> => invoke("set_last_widget_mode", { active }),
   openSettingsWindow: (): Promise<void> => invoke("open_settings_window"),
   closeSettingsWindow: (): Promise<void> => invoke("close_settings_window"),
 

@@ -27,11 +27,17 @@
       setTimeout(() => appApi.toggleFullscreen(), 300);
     }
     // startInWidgetMode is an explicit "always launch into widget mode"
-    // preference; lastWidgetModeActive instead just remembers whichever
-    // mode the window was actually in when last closed (see its definition
-    // in settings.svelte.ts) — either should resume widget mode.
-    if (settings.value.startInWidgetMode || settings.value.lastWidgetModeActive) {
+    // preference. Separately, appApi.getLastWidgetMode() (backed by a plain
+    // file, not this settings blob — see its own comment in tauri/api.ts)
+    // remembers whichever mode the window was actually in when last closed,
+    // so it resumes there instead of snapping back to the full view at the
+    // widget's small saved size. Either should resume widget mode.
+    if (settings.value.startInWidgetMode) {
       enableWidgetMode();
+    } else {
+      appApi.getLastWidgetMode().then((wasActive) => {
+        if (wasActive) enableWidgetMode();
+      });
     }
     return () => stopPolling();
   });

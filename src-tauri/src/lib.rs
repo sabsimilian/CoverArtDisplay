@@ -111,6 +111,33 @@ fn token_path(app: &AppHandle) -> PathBuf {
         .join("tokens.json")
 }
 
+// Whether the window was in widget mode when last closed — kept here
+// rather than in the frontend's localStorage-backed settings blob because
+// correctly restoring widget mode's small window size on launch depends on
+// reading this *before* the frontend has even loaded (see enable_widget_mode
+// below), and because localStorage's on-disk flush timing isn't guaranteed
+// the way a direct file write is (see atomic_write's own comment) — this is
+// exactly the kind of small, launch-critical flag that needs to survive an
+// abrupt kill, not just a clean exit.
+fn widget_mode_path(app: &AppHandle) -> PathBuf {
+    app.path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("widget_mode_active.txt")
+}
+
+#[tauri::command]
+fn get_last_widget_mode(app: AppHandle) -> bool {
+    fs::read_to_string(widget_mode_path(&app))
+        .map(|s| s.trim() == "true")
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+fn set_last_widget_mode(app: AppHandle, active: bool) {
+    atomic_write(&widget_mode_path(&app), if active { "true" } else { "false" });
+}
+
 fn load_tokens(app: &AppHandle) -> TokenData {
     fs::read_to_string(token_path(app))
         .ok()
@@ -121,7 +148,22 @@ fn load_tokens(app: &AppHandle) -> TokenData {
 fn save_tokens(app: &AppHandle, t: &TokenData) {
     let path = token_path(app);
     if let Some(dir) = path.parent() { let _ = fs::create_dir_all(dir); }
-    if let Ok(json) = serde_json::to_string_pretty(t) { let _ = fs::write(path, json); }
+    if let Ok(json) = serde_json::to_string_pretty(t) { atomic_write(&path, &json); }
+}
+
+// Writes to a sibling temp file and renames it over the target — rename is
+// atomic on both Windows and Linux, so a process killed mid-write (e.g. the
+// OS forcibly ending this app during shutdown, since closing the window
+// only hides it to the tray rather than exiting — see the CloseRequested
+// handler below) can never leave the real file half-written/corrupted. A
+// plain fs::write() doesn't have that guarantee: readers can observe a
+// truncated file mid-write, and load_tokens()'s JSON parse would silently
+// fail and fall back to empty — i.e. an unexplained forced logout.
+fn atomic_write(path: &std::path::Path, contents: &str) {
+    let tmp = path.with_extension("tmp");
+    if fs::write(&tmp, contents).is_ok() {
+        let _ = fs::rename(&tmp, path);
+    }
 }
 
 fn now_ms() -> u64 {
@@ -932,26 +974,40 @@ pub fn run() {
             // — otherwise the app could vanish with no way to reach it again.
             let tray_built = build_tray(app.handle()).is_ok();
 
+            fn save_win_state(handle: &AppHandle) {
+                use tauri_plugin_window_state::AppHandleExt as _;
+                let _ = handle.save_window_state(
+                    tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                );
+            }
+
             if let Some(win) = app.get_webview_window("main") {
                 let win_for_close = win.clone();
+                let app_handle = app.handle().clone();
                 win.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         if tray_built {
                             api.prevent_close();
                             let _ = win_for_close.hide();
+                            // Closing (above, hiding to the tray rather than
+                            // exiting) is the single most important moment to
+                            // save at: it's exactly when the window's final
+                            // position/size for this session is set, and
+                            // right before the app can sit running hidden
+                            // indefinitely and then get killed outright by a
+                            // Windows shutdown/restart — with no graceful
+                            // exit, and thus no RunEvent::Exit save at all.
+                            save_win_state(&app_handle);
                         }
                     }
                 });
 
-                // tauri-plugin-window-state only writes its saved-state file to
-                // disk on RunEvent::Exit — but closing this window (above) hides
-                // it to the tray instead of exiting, so the app can sit running
-                // in the background indefinitely and then get killed outright by
-                // a Windows shutdown/restart, with no graceful exit and thus no
-                // final save. Debounced-eager-saving on every move/resize means
-                // the on-disk file stays continuously current instead, so even
-                // an abrupt kill leaves a very recent (not stale-from-last-clean-
-                // exit) position/size behind for next launch to restore.
+                // Same reasoning, for the case where the window moves/resizes
+                // (e.g. entering widget mode) but is never explicitly closed
+                // before an abrupt kill — debounced so a drag's flood of
+                // Moved events doesn't hammer disk I/O on every pixel.
                 let debounce_id = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
                 let app_handle = app.handle().clone();
                 win.on_window_event(move |event| {
@@ -964,12 +1020,7 @@ pub fn run() {
                     tauri::async_runtime::spawn(async move {
                         tokio::time::sleep(std::time::Duration::from_millis(700)).await;
                         if debounce_id.load(std::sync::atomic::Ordering::SeqCst) == this_id {
-                            use tauri_plugin_window_state::AppHandleExt as _;
-                            let _ = handle.save_window_state(
-                                tauri_plugin_window_state::StateFlags::POSITION
-                                    | tauri_plugin_window_state::StateFlags::SIZE
-                                    | tauri_plugin_window_state::StateFlags::MAXIMIZED,
-                            );
+                            save_win_state(&handle);
                         }
                     });
                 });
@@ -1003,6 +1054,8 @@ pub fn run() {
             get_auto_start,
             enable_widget_mode,
             disable_widget_mode,
+            get_last_widget_mode,
+            set_last_widget_mode,
             open_settings_window,
             close_settings_window,
         ])
