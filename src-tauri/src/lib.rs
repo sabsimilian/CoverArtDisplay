@@ -735,12 +735,21 @@ fn get_auto_start(app: AppHandle) -> Result<bool, String> {
 // The main window always skips the taskbar now (see "skipTaskbar" in
 // tauri.conf.json — it's tray-only, never a taskbar icon), so widget mode no
 // longer needs to touch that itself on enable/disable.
+// reset_size is false when *resuming* an already-active widget-mode session
+// at launch (see get_last_widget_mode) — tauri-plugin-window-state has
+// already restored whatever size the user last left the widget window at by
+// this point, and forcing it back to the fixed default here would silently
+// throw that away on every single restart, defeating the whole point of
+// persisting it. true is for an actual fresh manual toggle-on, where there's
+// no prior widget size to preserve and resetting to a sane default is right.
 #[tauri::command]
-fn enable_widget_mode(window: tauri::WebviewWindow) -> Result<(), String> {
+fn enable_widget_mode(window: tauri::WebviewWindow, reset_size: bool) -> Result<(), String> {
     use tauri::LogicalSize;
     // Exact 4:5 ratio (was 308x352 ≈ 7:8) — keep the same rough footprint.
     window.set_min_size(Some(LogicalSize::new(154_f64, 193_f64))).map_err(|e| e.to_string())?;
-    window.set_size(LogicalSize::new(308_f64, 385_f64)).map_err(|e| e.to_string())?;
+    if reset_size {
+        window.set_size(LogicalSize::new(308_f64, 385_f64)).map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 

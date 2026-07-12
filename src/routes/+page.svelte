@@ -31,12 +31,15 @@
     // file, not this settings blob — see its own comment in tauri/api.ts)
     // remembers whichever mode the window was actually in when last closed,
     // so it resumes there instead of snapping back to the full view at the
-    // widget's small saved size. Either should resume widget mode.
+    // widget's small saved size. Either should resume widget mode — both
+    // pass resetSize=false since tauri-plugin-window-state has already
+    // restored whatever size the window was last actually left at by this
+    // point in startup, and that's what should stick, not the fixed default.
     if (settings.value.startInWidgetMode) {
-      enableWidgetMode();
+      enableWidgetMode(false);
     } else {
       appApi.getLastWidgetMode().then((wasActive) => {
-        if (wasActive) enableWidgetMode();
+        if (wasActive) enableWidgetMode(false);
       });
     }
     return () => stopPolling();

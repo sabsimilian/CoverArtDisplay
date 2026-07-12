@@ -69,7 +69,12 @@ export const appApi = {
   setAutoStart: (enabled: boolean): Promise<boolean> => invoke("set_auto_start", { enabled }),
   getAutoStart: (): Promise<boolean> => invoke("get_auto_start"),
 
-  enableWidgetMode: (): Promise<void> => invoke("enable_widget_mode"),
+  // resetSize=false when resuming an already-active widget-mode session at
+  // launch, so the size tauri-plugin-window-state already restored isn't
+  // immediately overwritten back to the fixed default — see enable_widget_mode's
+  // own comment in lib.rs.
+  enableWidgetMode: (resetSize: boolean = true): Promise<void> =>
+    invoke("enable_widget_mode", { resetSize }),
   disableWidgetMode: (): Promise<void> => invoke("disable_widget_mode"),
   // Backed by a plain file (see set_last_widget_mode in lib.rs), not the
   // localStorage-backed settings blob — this needs to survive an abrupt

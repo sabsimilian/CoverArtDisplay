@@ -47,12 +47,16 @@ function startIdleShuffle(): void {
   shuffleTimer = setInterval(refreshIdleAlbum, settings.value.mediaChangeInterval * 1000);
 }
 
-export async function enableWidgetMode(): Promise<void> {
+// resetSize=false when resuming an already-active widget-mode session at
+// launch (see +page.svelte) — see enableWidgetMode's own comment in
+// tauri/api.ts for why forcing the fixed default here would defeat
+// persisting a custom widget size across restarts.
+export async function enableWidgetMode(resetSize = true): Promise<void> {
   if (enabled) return;
   enabled = true;
   void appApi.setLastWidgetMode(true);
   if (!playback.isPlaying) startIdleShuffle();
-  await appApi.enableWidgetMode();
+  await appApi.enableWidgetMode(resetSize);
 }
 
 export async function disableWidgetMode(): Promise<void> {
