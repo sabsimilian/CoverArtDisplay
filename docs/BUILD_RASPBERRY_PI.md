@@ -45,12 +45,21 @@ sudo apt install -y nodejs
 
 ## 4. Clone and build
 
+The repo is private, so a plain `git clone` will just prompt for
+credentials it can't accept. Generate a token once instead:
+[github.com/settings/tokens/new](https://github.com/settings/tokens/new) →
+"Generate new token (classic)" → tick the **repo** scope → Generate →
+copy the token (starts with `ghp_...`, only shown once).
+
 ```bash
-git clone https://github.com/sabsimilian/CoverArtDisplay.git
+git clone https://<YOUR_TOKEN>@github.com/sabsimilian/CoverArtDisplay.git
 cd CoverArtDisplay
 npm ci
 npm run tauri build
 ```
+
+(Replace `<YOUR_TOKEN>` with the token you generated — keep it secret, it's
+tied to your GitHub account.)
 
 The `.deb` and the raw binary land in `src-tauri/target/release/bundle/`.
 
