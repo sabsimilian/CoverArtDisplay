@@ -224,10 +224,22 @@ async fn refresh_token(app: &AppHandle, state: &AppState) -> bool {
     let Ok(data) = resp.json::<serde_json::Value>().await else { return false };
     let at = data["access_token"].as_str().unwrap_or("").to_string();
     let ei = data["expires_in"].as_u64().unwrap_or(3600);
+    // Spotify's PKCE flow can rotate the refresh token on ANY refresh
+    // response, not just the initial code exchange — per their own docs,
+    // a new refresh_token in the response must replace the stored one, or
+    // the old one gets silently invalidated by the rotation. Missing this
+    // was the actual cause of being logged out roughly every access-token
+    // lifetime (~1h): the refresh itself would succeed once, but the next
+    // one (still using the now-superseded old refresh_token) got a 400 and
+    // discard_tokens() kicked in.
+    let new_rt = data["refresh_token"].as_str().map(|s| s.to_string());
 
     let mut t = state.tokens.lock().unwrap();
     t.access_token = Some(at);
     t.expires_at   = Some(now_ms() + ei * 1000);
+    if let Some(new_rt) = new_rt {
+        t.refresh_token = Some(new_rt);
+    }
     save_tokens(app, &t);
     true
 }
