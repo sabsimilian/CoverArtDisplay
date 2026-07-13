@@ -1,5 +1,9 @@
 # Spotify Cover Art Display
 
+[![Latest Release](https://img.shields.io/github/v/release/sabsimilian/CoverArtDisplay?label=release)](https://github.com/sabsimilian/CoverArtDisplay/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/sabsimilian/CoverArtDisplay)](LICENSE)
+![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Raspberry%20Pi-blue)
+
 A desktop app that turns a screen into a live display of whatever's currently playing on Spotify — full album art, fullscreen or windowed, a small always-on-top widget mode, ambient idle-mode slideshows when nothing's playing, and hover-to-reveal playback controls.
 
 Built with [Tauri v2](https://tauri.app/), [SvelteKit](https://kit.svelte.dev/) (Svelte 5), and [Tailwind CSS v4](https://tailwindcss.com/).
@@ -7,6 +11,16 @@ Built with [Tauri v2](https://tauri.app/), [SvelteKit](https://kit.svelte.dev/) 
 <p align="center">
   <img src="docs/screenshots/player-view.png" width="380" alt="Now playing, fullscreen" />
 </p>
+
+## Contents
+
+- [Features](#features)
+- [Download](#download)
+- [First-time setup](#first-time-setup)
+- [Known issues](#known-issues)
+- [Building from source](#building-from-source)
+- [Tech stack](#tech-stack)
+- [License](#license)
 
 ## Features
 
@@ -70,11 +84,21 @@ Grab the latest build for your platform from the [Releases page](https://github.
 | Linux — any distro | `*_amd64.AppImage` | No installation: `chmod +x`, then run |
 | Raspberry Pi (64-bit OS, Pi 3/4/5) | `*_arm64.deb` / `*.aarch64.rpm` / `*_aarch64.AppImage` | Same as above, ARM64 build |
 
+## First-time setup
+
+1. Install and launch the app.
+2. Click **Connect to Spotify** on the login screen — this opens Spotify's own authorization page in your browser.
+3. Approve access, and you're back in the app, signed in for good (no need to log in again on future launches).
+4. Play something on any Spotify device (phone, desktop, web) — the cover art shows up automatically.
+5. Open the gear menu (top-right corner) for Settings, Widget Mode, Fullscreen, and Logout.
+
 A Spotify account is required to sign in. Playback control (play/pause/skip) requires **Spotify Premium**, per Spotify's own API restrictions — reading what's currently playing works on any account.
 
 ## Known issues
 
 - **Linux:** the "Transparent" background option for the metadata area doesn't currently produce the intended effect. It's one optional visual setting — everything else works normally. A fix is planned.
+
+Found something else? Please [open an issue](https://github.com/sabsimilian/CoverArtDisplay/issues).
 
 ## Building from source
 
@@ -98,4 +122,4 @@ Bundled installers land in `src-tauri/target/release/bundle/`.
 
 ## License
 
-MIT
+[MIT](LICENSE)
