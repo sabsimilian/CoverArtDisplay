@@ -28,7 +28,7 @@ Built with [Tauri v2](https://tauri.app/), [SvelteKit](https://kit.svelte.dev/) 
 Full-bleed cover art with track/artist/album, long text scrolls once so it can be read in full, and a live progress bar tracking playback position.
 
 **Widget Mode**
-A small always-on-top window for keeping the current cover art visible while doing other things — remembers its own size and position across restarts.
+A small window for keeping the current cover art visible while doing other things — remembers its own size and position across restarts.
 
 <p align="center">
   <img src="docs/screenshots/widget-mode.png" width="420" alt="Widget mode floating on the desktop" />
