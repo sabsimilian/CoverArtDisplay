@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spotify Cover Art Display</title>
+<meta name="description" content="A desktop app that displays your currently playing Spotify track's cover art, fullscreen or as a small always-on-top widget." />
+<style>
+  :root {
+    --bg: #121212;
+    --bg-elevated: #1a1a1a;
+    --border: #2a2a2a;
+    --text: #f2f2f2;
+    --text-dim: #a0a0a0;
+    --accent: #1db954;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+  header.hero {
+    padding: 96px 0 64px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+  .hero p {
+    color: var(--text-dim);
+    font-size: 1.15rem;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .hero .badge {
+    display: inline-block;
+    margin-bottom: 20px;
+    padding: 4px 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  section { padding: 40px 0; }
+  section h2 {
+    font-size: 1.4rem;
+    margin: 0 0 24px;
+  }
+
+  .platforms {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .card h3 {
+    margin: 0 0 4px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card .sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin: 0 0 18px;
+  }
+  .dl {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dl a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #232323;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dl a:hover {
+    border-color: var(--accent);
+    background: #262626;
+  }
+  .dl a .ext {
+    color: var(--text-dim);
+    font-weight: 400;
+    font-size: 0.82rem;
+  }
+  .dl a.primary {
+    background: var(--accent);
+    color: #0a1f10;
+    font-weight: 700;
+  }
+  .dl a.primary .ext { color: #0a1f10; opacity: 0.7; }
+  .dl a.primary:hover { filter: brightness(1.08); border-color: transparent; }
+
+  .note {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-left: 3px solid #e0a030;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 0.92rem;
+    color: var(--text-dim);
+  }
+  .note strong { color: var(--text); }
+
+  footer {
+    padding: 40px 0 80px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.88rem;
+  }
+  footer a { color: var(--text-dim); }
+  footer a:hover { color: var(--text); }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fafafa;
+      --bg-elevated: #ffffff;
+      --border: #e4e4e4;
+      --text: #1a1a1a;
+      --text-dim: #666666;
+    }
+    .dl a { background: #f2f2f2; }
+    .dl a:hover { background: #ececec; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="badge">v0.1.0</span>
+    <h1>Spotify Cover Art Display</h1>
+    <p>Shows your currently playing Spotify track's cover art — fullscreen, windowed, or as a small always-on-top widget. Idle-mode slideshows, playback controls, and more.</p>
+  </header>
+
+  <section>
+    <h2>Download</h2>
+    <div class="platforms">
+
+      <div class="card">
+        <h3>🪟 Windows</h3>
+        <p class="sub">Installer, just run it</p>
+        <div class="dl">
+          <a class="primary" href="https://github.com/sabsimilian/CoverArtDisplay/releases/download/v0.1.0/Spotify.Cover.Art_0.1.0_x64-setup.exe">
+            Download <span class="ext">.exe</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🐧 Linux (x86_64)</h3>
+        <p class="sub">Ubuntu, Pop!_OS, Mint, Fedora, and most others</p>
+        <div class="dl">
+          <a class="primary" href="https://github.com/sabsimilian/CoverArtDisplay/releases/download/v0.1.0/Spotify.Cover.Art_0.1.0_amd64.deb">
+            .deb (Debian/Ubuntu-based) <span class="ext">recommended</span>
+          </a>
+          <a href="https://github.com/sabsimilian/CoverArtDisplay/releases/download/v0.1.0/Spotify.Cover.Art-0.1.0-1.x86_64.rpm">
+            .rpm (Fedora/openSUSE) <span class="ext">.rpm</span>
+          </a>
+          <a href="https://github.com/sabsimilian/CoverArtDisplay/releases/download/v0.1.0/Spotify.Cover.Art_0.1.0_amd64.AppImage">
+            AppImage (any distro, no install) <span class="ext">.AppImage</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🍓 Raspberry Pi</h3>
+        <p class="sub">64-bit Raspberry Pi OS, Pi 3/4/5</p>
+        <div class="dl">
+          <a class="primary" href="https://github.com/sabsimilian/CoverArtDisplay/releases/download/v0.1.0/Spotify.Cover.Art_0.1.0_arm64.deb">
+            .deb (Raspberry Pi OS) <span class="ext">recommended</span>
+          </a>
+          <a href="https://github.com/sabsimilian/CoverArtDisplay/releases/download/v0.1.0/Spotify.Cover.Art-0.1.0-1.aarch64.rpm">
+            .rpm <span class="ext">.rpm</span>
+          </a>
+          <a href="https://github.com/sabsimilian/CoverArtDisplay/releases/download/v0.1.0/Spotify.Cover.Art_0.1.0_aarch64.AppImage">
+            AppImage (no install) <span class="ext">.AppImage</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Known issues</h2>
+    <div class="note">
+      <strong>Linux:</strong> the "Transparent" background option for the metadata area doesn't work correctly yet.
+      It's one optional setting — everything else runs normally. A fix is planned.
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <a href="https://github.com/sabsimilian/CoverArtDisplay">Source on GitHub</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/sabsimilian/CoverArtDisplay/releases">All releases</a>
+    </p>
+  </footer>
+</div>
+
+</body>
+</html>
