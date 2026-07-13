@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/github/license/sabsimilian/CoverArtDisplay)](LICENSE)
 ![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Raspberry%20Pi-blue)
 
-A desktop app that turns a screen into a live display of whatever's currently playing on Spotify — full album art, fullscreen or windowed, a small always-on-top widget mode, ambient idle-mode slideshows when nothing's playing, and hover-to-reveal playback controls.
+A desktop app that turns a screen into a live display of whatever's currently playing on Spotify — full album art, fullscreen or windowed, a small widget mode, ambient idle-mode slideshows when nothing's playing, and hover-to-reveal playback controls.
 
 Built with [Tauri v2](https://tauri.app/), [SvelteKit](https://kit.svelte.dev/) (Svelte 5), and [Tailwind CSS v4](https://tailwindcss.com/).
 
@@ -14,6 +14,7 @@ Built with [Tauri v2](https://tauri.app/), [SvelteKit](https://kit.svelte.dev/) 
 
 ## Contents
 
+- [A dedicated ambient display](#a-dedicated-ambient-display)
 - [Features](#features)
 - [Download](#download)
 - [First-time setup](#first-time-setup)
@@ -21,6 +22,16 @@ Built with [Tauri v2](https://tauri.app/), [SvelteKit](https://kit.svelte.dev/) 
 - [Building from source](#building-from-source)
 - [Tech stack](#tech-stack)
 - [License](#license)
+
+## A dedicated ambient display
+
+This is the primary intended use case: an old monitor, a Raspberry Pi, and this app turned into a small always-on cover art display sitting on a desk or shelf — no PC required once it's set up.
+
+<p align="center">
+  <img src="docs/screenshots/dedicated-screen.jpg" width="420" alt="A repurposed monitor mounted next to a music studio setup, running the app on a Raspberry Pi as a dedicated ambient display" />
+</p>
+
+It works just as well as a normal desktop app on Windows or Linux, but this — a spare screen and a cheap Pi, permanently showing whatever's playing — is what it's actually built for.
 
 ## Features
 
