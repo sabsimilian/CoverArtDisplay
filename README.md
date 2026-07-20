@@ -25,7 +25,7 @@ Built with [Tauri v2](https://tauri.app/), [SvelteKit](https://kit.svelte.dev/) 
 
 ## A dedicated ambient display
 
-This is the primary intended use case: an old monitor, a Raspberry Pi, and this app turned into a small always-on cover art display sitting on a desk or shelf — no PC required once it's set up.
+This is the primary intended use case: an old monitor, a Raspberry Pi, and this app turned into a small always-on cover art display sitting on a desk or shelf.
 
 <p align="center">
   <img src="docs/screenshots/dedicated-screen.jpg" width="420" alt="A repurposed monitor mounted next to a music studio setup, running the app on a Raspberry Pi as a dedicated ambient display" />
