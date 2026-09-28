@@ -33,6 +33,8 @@ This is the primary intended use case: an old monitor, a Raspberry Pi, and this 
 
 It works just as well as a normal desktop app on Windows or Linux, but this — a spare screen and a cheap Pi, permanently showing whatever's playing — is what it's actually built for.
 
+To set one up — boot straight into the app fullscreen (portrait or landscape), no desktop, no mouse needed — see [docs/RASPBERRY_PI_KIOSK.md](docs/RASPBERRY_PI_KIOSK.md).
+
 ## Features
 
 **Now Playing**
