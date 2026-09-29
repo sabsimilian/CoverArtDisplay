@@ -144,3 +144,9 @@ input[type="color"]:hover {
   background: var(--accent-color);
   cursor: pointer;
 }
+
+/* See startCursorAutoHide() — beats every per-element cursor rule while idle. */
+html.cursor-hidden,
+html.cursor-hidden * {
+  cursor: none !important;
+}
