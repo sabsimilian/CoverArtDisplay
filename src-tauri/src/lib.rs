@@ -4,7 +4,9 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use serde::{Deserialize, Serialize};
 
-const CLIENT_ID: &str   = "dd68d34cdb834f63a404faa8f75bb0af";
+// Built-in Spotify app. It's in Spotify's development mode, so only accounts
+// its owner has allowlisted can use it — see client_id() for overriding it.
+const DEFAULT_CLIENT_ID: &str = "dd68d34cdb834f63a404faa8f75bb0af";
 const REDIRECT_URI: &str = "spotify-cover-art://auth";
 const VIDEO_EXTS: &[&str] = &["mp4", "webm", "mov", "mkv"];
 const PHOTO_EXTS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
@@ -42,9 +44,12 @@ struct TrackInfo {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct TrackResult {
     #[serde(skip_serializing_if = "Option::is_none")] track: Option<TrackInfo>,
     #[serde(skip_serializing_if = "Option::is_none")] error: Option<String>,
+    // Set when Spotify answered 429: seconds to wait (its Retry-After header).
+    #[serde(skip_serializing_if = "Option::is_none")] retry_after_secs: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -101,6 +106,27 @@ struct VideosResult { videos: Vec<String>, error: Option<String> }
 
 #[derive(Serialize)]
 struct PhotosResult { photos: Vec<String>, error: Option<String> }
+
+// ── Spotify client ID ─────────────────────────────────────────────────────────
+
+// Lets users run the app against their own Spotify developer app (Redirect URI
+// spotify-cover-art://auth, Web API) instead of the built-in one. Checked in
+// order: the SPOTIFY_CLIENT_ID environment variable, then a `client_id` file in
+// the app config dir (e.g. ~/.config/com.spotifycoverart.app.v2/client_id on
+// Linux), then DEFAULT_CLIENT_ID. Read on every use so no restart is needed
+// between editing the file and logging in.
+fn client_id(app: &AppHandle) -> String {
+    if let Ok(id) = std::env::var("SPOTIFY_CLIENT_ID") {
+        if !id.trim().is_empty() { return id.trim().to_string(); }
+    }
+    app.path()
+        .app_config_dir()
+        .ok()
+        .and_then(|dir| fs::read_to_string(dir.join("client_id")).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_CLIENT_ID.to_string())
+}
 
 // ── Token persistence ─────────────────────────────────────────────────────────
 
@@ -204,11 +230,12 @@ async fn refresh_token(app: &AppHandle, state: &AppState) -> bool {
     let rt = state.tokens.lock().unwrap().refresh_token.clone();
     let Some(rt) = rt else { return false };
 
+    let cid = client_id(app);
     let client = reqwest::Client::new();
     // Network/transport failure — likely transient (offline, DNS, etc.); keep the
     // stored token around so the next attempt can retry instead of forcing re-login.
     let Ok(resp) = client.post("https://accounts.spotify.com/api/token")
-        .form(&[("grant_type","refresh_token"),("refresh_token",&rt),("client_id",CLIENT_ID)])
+        .form(&[("grant_type","refresh_token"),("refresh_token",&rt),("client_id",cid.as_str())])
         .send().await
     else { return false };
 
@@ -284,12 +311,13 @@ async fn handle_oauth_url(app: &AppHandle, url_str: &str) {
         None => { let _ = app.emit("auth-complete", false); return; }
     };
 
+    let cid = client_id(app);
     let client = reqwest::Client::new();
     let params_vec = [
         ("grant_type",    "authorization_code"),
         ("code",          code.as_str()),
         ("redirect_uri",  REDIRECT_URI),
-        ("client_id",     CLIENT_ID),
+        ("client_id",     cid.as_str()),
         ("code_verifier", verifier.as_str()),
     ];
     match client.post("https://accounts.spotify.com/api/token")
@@ -320,7 +348,7 @@ fn spotify_check_auth(state: State<'_, AppState>) -> bool {
 }
 
 #[tauri::command]
-async fn spotify_start_auth(_app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+async fn spotify_start_auth(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let auth_st = random_hex(16);
     let (verifier, challenge) = gen_pkce();
     *state.auth_state.lock().unwrap()    = Some(auth_st.clone());
@@ -329,7 +357,7 @@ async fn spotify_start_auth(_app: AppHandle, state: State<'_, AppState>) -> Resu
     let scope = "user-read-private user-read-email user-read-currently-playing user-read-playback-state user-library-read user-modify-playback-state";
     let url = format!(
         "https://accounts.spotify.com/authorize?client_id={}&response_type=code&redirect_uri={}&scope={}&state={}&code_challenge={}&code_challenge_method=S256&show_dialog=false",
-        CLIENT_ID,
+        client_id(&app),
         urlencoding::encode(REDIRECT_URI),
         urlencoding::encode(scope),
         auth_st,
@@ -354,7 +382,7 @@ async fn logout(app: AppHandle, state: State<'_, AppState>) -> Result<(), String
 #[tauri::command]
 async fn spotify_get_current_track(app: AppHandle, state: State<'_, AppState>) -> Result<TrackResult, String> {
     let Some(token) = valid_token(&app, &state).await else {
-        return Ok(TrackResult { track: None, error: Some("Not authenticated".into()) });
+        return Ok(TrackResult { retry_after_secs: None, track: None, error: Some("Not authenticated".into()) });
     };
     let resp = reqwest::Client::new()
         .get("https://api.spotify.com/v1/me/player/currently-playing")
@@ -362,18 +390,33 @@ async fn spotify_get_current_track(app: AppHandle, state: State<'_, AppState>) -
         .send().await.map_err(|e| e.to_string())?;
 
     if resp.status().as_u16() == 204 {
-        return Ok(TrackResult { track: None, error: Some("No track playing".into()) });
+        return Ok(TrackResult { retry_after_secs: None, track: None, error: Some("No track playing".into()) });
+    }
+    // Rate limited: pass Spotify's Retry-After up so the poller backs off for
+    // that long instead of retrying every few seconds (which never lets the
+    // quota recover) and doesn't mistake the error body for "nothing playing".
+    if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let secs = resp.headers().get(reqwest::header::RETRY_AFTER)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .unwrap_or(60);
+        return Ok(TrackResult { retry_after_secs: Some(secs), track: None, error: Some("Rate limited".into()) });
+    }
+    // Any other failure (5xx, 401 mid-refresh...) is an error, not "nothing playing".
+    if !resp.status().is_success() {
+        return Err(format!("Spotify returned {}", resp.status()));
     }
     let data: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
     let item = &data["item"];
     if item.is_null() {
-        return Ok(TrackResult { track: None, error: Some("No track playing".into()) });
+        return Ok(TrackResult { retry_after_secs: None, track: None, error: Some("No track playing".into()) });
     }
     let artist = item["artists"].as_array()
         .map(|a| a.iter().filter_map(|x| x["name"].as_str()).collect::<Vec<_>>().join(", "))
         .unwrap_or_default();
 
     Ok(TrackResult {
+        retry_after_secs: None,
         track: Some(TrackInfo {
             id:          item["id"].as_str().unwrap_or("").to_string(),
             name:        item["name"].as_str().unwrap_or("").to_string(),
