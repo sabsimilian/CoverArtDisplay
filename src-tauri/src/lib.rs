@@ -485,9 +485,15 @@ async fn spotify_get_random_album(app: AppHandle, state: State<'_, AppState>) ->
     let client = reqwest::Client::new();
     let auth   = format!("Bearer {token}");
 
-    let total: u64 = client.get("https://api.spotify.com/v1/me/tracks?limit=1")
-        .header("Authorization", &auth).send().await.map_err(|e| e.to_string())?
-        .json::<serde_json::Value>().await.map_err(|e| e.to_string())?
+    let resp = client.get("https://api.spotify.com/v1/me/tracks?limit=1")
+        .header("Authorization", &auth).send().await.map_err(|e| e.to_string())?;
+    if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        return Ok(AlbumResult { album: None, error: Some("Rate limited".into()) });
+    }
+    if !resp.status().is_success() {
+        return Err(format!("Spotify returned {}", resp.status()));
+    }
+    let total: u64 = resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())?
         ["total"].as_u64().unwrap_or(0);
 
     if total == 0 { return Ok(AlbumResult { album: None, error: Some("No saved tracks".into()) }); }

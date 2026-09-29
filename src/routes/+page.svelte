@@ -11,6 +11,7 @@
   import StandbyView from "$lib/components/views/StandbyView.svelte";
   import WidgetView from "$lib/components/views/WidgetView.svelte";
   import SettingsModal from "$lib/components/settings/SettingsModal.svelte";
+  import RateLimitNotice from "$lib/components/RateLimitNotice.svelte";
   import { isSettingsOnly } from "$lib/utils/settings-only";
 
   // The settings popup window (opened via open_settings_window in the Rust
@@ -64,4 +65,5 @@
 
 {#if !settingsOnly}
   <SettingsModal />
+  <RateLimitNotice />
 {/if}
