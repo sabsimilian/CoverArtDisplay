@@ -3,9 +3,11 @@
   import MetadataStrip from "$lib/components/MetadataStrip.svelte";
   import CoverArt from "$lib/components/CoverArt.svelte";
   import { marquee } from "$lib/actions/marquee";
+  import { loadedImage } from "$lib/utils/loaded-image.svelte";
 
   const album = $derived(standby.currentAlbum);
-  const coverUrl = $derived(album?.images?.[0]?.url ?? "");
+  const cover = loadedImage(() => album?.images?.[0]?.url ?? "");
+  const coverUrl = $derived(cover.url);
   const artistLabel = $derived(album ? `by ${album.artists}` : "");
   const year = $derived(album?.release_date ? album.release_date.split("-")[0] : "");
 </script>
