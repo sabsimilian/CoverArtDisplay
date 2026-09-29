@@ -105,6 +105,18 @@ Grab the latest build for your platform from the [Releases page](https://github.
 
 A Spotify account is required to sign in. Playback control (play/pause/skip) requires **Spotify Premium**, per Spotify's own API restrictions — reading what's currently playing works on any account.
 
+### Using your own Spotify app
+
+The built-in Spotify app is in Spotify's development mode, which only lets in accounts its owner has added. If login succeeds but nothing shows up (Spotify returns `403 The user is not registered for this application`), use your own:
+
+1. Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) with Redirect URI `spotify-cover-art://auth` and **Web API** ticked.
+2. Put its Client ID (no client secret needed) either in the `SPOTIFY_CLIENT_ID` environment variable, or on one line in a `client_id` file in the app's config folder:
+   - Linux: `~/.config/com.spotifycoverart.app.v2/client_id`
+   - Windows: `%APPDATA%\com.spotifycoverart.app.v2\client_id`
+3. Log out and log back in.
+
+Development-mode apps also have a small daily request quota, shared by every app on your developer account. If it runs out, Spotify locks the app out for hours; the app then waits it out and shows when it will resume.
+
 ## Known issues
 
 - **Linux:** the "Transparent" background option for the metadata area doesn't currently produce the intended effect. It's one optional visual setting — everything else works normally. A fix is planned.
