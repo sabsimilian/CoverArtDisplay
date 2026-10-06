@@ -640,7 +640,7 @@ fn is_newer_version(latest: &str, current: &str) -> bool {
 // they differ (e.g. "aarch64" vs "arm64").
 fn pick_platform_asset(assets: &[serde_json::Value]) -> (Option<String>, Option<String>) {
     let arch_aliases: &[&str] = match std::env::consts::ARCH {
-        "x86_64" => &["x86_64", "amd64"],
+        "x86_64" => &["x86_64", "amd64", "x64"],
         "aarch64" => &["aarch64", "arm64"],
         "arm" => &["armv7", "armhf", "arm"],
         "x86" => &["i386", "i686", "x86"],
