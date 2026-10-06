@@ -1,6 +1,6 @@
 [package]
 name = "spotify-cover-art-v2"
-version = "0.2.1"
+version = "0.2.0"
 description = "Spotify Cover Art Display"
 edition = "2021"
 
