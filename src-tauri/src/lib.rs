@@ -646,6 +646,7 @@ fn pick_platform_asset(assets: &[serde_json::Value]) -> (Option<String>, Option<
         "x86" => &["i386", "i686", "x86"],
         other => &[other],
     };
+    let is_universal_macos = cfg!(target_os = "macos");
     let exts: &[&str] = if cfg!(target_os = "windows") {
         &[".exe", ".msi"]
     } else if cfg!(target_os = "macos") {
@@ -656,7 +657,9 @@ fn pick_platform_asset(assets: &[serde_json::Value]) -> (Option<String>, Option<
     for ext in exts {
         if let Some(a) = assets.iter().find(|a| {
             let name = a["name"].as_str().unwrap_or("").to_lowercase();
-            name.ends_with(ext) && arch_aliases.iter().any(|alias| name.contains(alias))
+            name.ends_with(ext)
+                && (arch_aliases.iter().any(|alias| name.contains(alias))
+                    || (is_universal_macos && name.contains("universal")))
         }) {
             return (
                 a["browser_download_url"].as_str().map(|s| s.to_string()),

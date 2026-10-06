@@ -1,6 +1,6 @@
 [package]
 name = "spotify-cover-art-v2"
-version = "0.1.0"
+version = "0.2.0"
 description = "Spotify Cover Art Display"
 edition = "2021"
 
@@ -15,7 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri            = { version = "2", features = ["protocol-asset", "tray-icon"] }
+tauri            = { version = "2", features = ["protocol-asset", "tray-icon", "macos-private-api"] }
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 tauri-plugin-deep-link  = "2"
 tauri-plugin-shell      = "2"

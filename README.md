@@ -2,7 +2,7 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/sabsimilian/CoverArtDisplay?label=release)](https://github.com/sabsimilian/CoverArtDisplay/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/sabsimilian/CoverArtDisplay)](LICENSE)
-![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Raspberry%20Pi-blue)
+![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Raspberry%20Pi-blue)
 
 A desktop app that turns a screen into a live display of whatever's currently playing on Spotify — full album art, fullscreen or windowed, a small widget mode, ambient idle-mode slideshows when nothing's playing, and hover-to-reveal playback controls.
 
@@ -89,6 +89,7 @@ Grab the latest build for your platform from the [Releases page](https://github.
 
 | Platform | File | Notes |
 |---|---|---|
+| macOS (Apple Silicon and Intel) | `*_universal.dmg` | Open the DMG and drag the app into Applications. The build is unsigned; macOS may require **Open Anyway** in Privacy & Security on first launch. |
 | Windows | `*_x64-setup.exe` | Just run it |
 | Linux — Ubuntu / Debian / Pop!\_OS / Mint | `*_amd64.deb` | `sudo apt install ./file.deb`, or double-click in most file managers |
 | Linux — Fedora / openSUSE | `*.x86_64.rpm` | `sudo dnf install ./file.rpm` or `sudo zypper install ./file.rpm` |

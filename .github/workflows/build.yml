@@ -1,10 +1,12 @@
-name: Build
+name: Build and Release
 
-# Manual for now — this is for pulling down test builds per platform, not an
-# auto-release pipeline. Add a `push: tags: ["v*"]` trigger (and a release
-# step) once you're ready to actually publish to GitHub Releases.
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -57,7 +59,14 @@ jobs:
       - run: npm ci
 
       - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Spotify Cover Art ${{ github.ref_name }}"
+          releaseBody: "Bug fixes and macOS support. Download the installer for your platform below."
+          releaseDraft: false
+          prerelease: false
           args: ${{ matrix.args }}
 
       - uses: actions/upload-artifact@v4

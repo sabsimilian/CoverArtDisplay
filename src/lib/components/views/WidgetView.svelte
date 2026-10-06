@@ -34,7 +34,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="relative flex h-screen w-screen flex-col overflow-hidden"
+  class="relative flex h-screen w-screen flex-col overflow-hidden rounded-[24px]"
   onmouseenter={() => (hovering = true)}
   onmouseleave={() => (hovering = false)}
 >

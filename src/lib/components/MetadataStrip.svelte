@@ -38,11 +38,9 @@
     };
   });
 
-  // The base layer always paints a background (matches the OG app: it sets
-  // this baseline on every style, not just Static). Only Gradient uses the
-  // extracted palette; Static AND Cover Image both use the plain user-picked
-  // color — Cover Image's base is just a neutral backing behind the blurred
-  // cover (see below), never meant to be visible or notable on its own.
+  // The selected style always has an immediate fallback color. The entire
+  // composed background is then faded as one layer, so transparency applies
+  // once to Static, Gradient, and Cover Image alike.
   const baseBg = $derived.by((): { color: string; image: string } => {
     if (style === "gradient") {
       return gradient ? { color: "", image: gradient } : { color: settings.value.areaUnderCoverBgColor, image: "" };
@@ -53,16 +51,19 @@
 
 <div class="relative w-full shrink-0 overflow-hidden" style="height: {height};">
   <div
-    class="absolute inset-0"
-    style="
-      background-color: {baseBg.color};
-      background-image: {baseBg.image};
-      background-size: cover;
-      background-position: center;
-      opacity: var(--area-bg-opacity, 1);
-      transition: background-color 0.5s ease, opacity 0.3s ease;
-    "
+    class="absolute inset-0 isolate"
+    style="opacity: var(--area-bg-opacity, 1);"
   >
+    <div
+      class="absolute inset-0"
+      style="
+        background-color: {baseBg.color};
+        background-image: {baseBg.image};
+        background-size: cover;
+        background-position: center;
+      "
+    ></div>
+
     {#if style === "coverimage" && coverUrl}
       <!-- Near-opaque (0.96, not 1) — the real point is for this to read as
            "the cover art itself, extending outward and blurred" the way a
@@ -79,7 +80,7 @@
           background-image: url('{coverUrl}');
           background-size: cover;
           background-position: center;
-          filter: blur(40px) brightness(0.55) saturate(1.15) opacity(0.96);
+          filter: blur(40px) brightness(0.55) saturate(1.15);
         "
       ></div>
     {/if}

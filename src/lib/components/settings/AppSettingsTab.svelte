@@ -68,7 +68,7 @@
       }
       if (result.assetUrl) {
         const proceed = await confirmDialog(
-          `A new version is available: v${result.latestVersion} (you have v${result.currentVersion}).\n\nDownload and install it now? The app will close and the installer will open.`,
+          `A new version is available: v${result.latestVersion} (you have v${result.currentVersion}).\n\nDownload and install it now? The app will close and the installer will open. On macOS, open the downloaded DMG and drag Spotify Cover Art into Applications to replace the current version.`,
         );
         if (proceed) {
           updateButtonLabel = "Downloading...";

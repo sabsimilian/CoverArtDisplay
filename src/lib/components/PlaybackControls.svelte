@@ -30,9 +30,9 @@
   class:pointer-events-none={!hovering}
   style="
     background: rgba(0, 0, 0, {hovering ? 0.4 : 0});
-    backdrop-filter: blur({hovering ? 10 : 0}px);
-    -webkit-backdrop-filter: blur({hovering ? 10 : 0}px);
-    transition: background-color 0.25s ease, backdrop-filter 0.25s ease;
+    backdrop-filter: {hovering ? "blur(10px)" : "none"};
+    -webkit-backdrop-filter: {hovering ? "blur(10px)" : "none"};
+    transition: background-color 0.25s ease;
   "
 >
   <div class="flex items-center gap-[clamp(16px,4vw,32px)]" style="opacity: {hovering ? 1 : 0}; transition: opacity 0.2s ease;">
