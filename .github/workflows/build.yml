@@ -109,8 +109,12 @@ jobs:
           gh release edit v0.2.0 --notes "Windows widget corner rendering fix. Download the Windows installer below."
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          gh release delete v0.2.1 --yes --cleanup-tag
+          $releases = gh release list --json tagName --jq '.[].tagName'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($releases -contains "v0.2.1") {
+            gh release delete v0.2.1 --yes --cleanup-tag
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
           gh api --method DELETE "repos/$env:GITHUB_REPOSITORY/git/refs/tags/v0.2.0-windows-fix"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
