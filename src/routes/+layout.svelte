@@ -42,6 +42,7 @@
   // SettingsModal's own inline wrapper should already cover the full
   // viewport, but this is a cheap belt-and-suspenders in case it doesn't.
   $effect(() => {
+    document.body.classList.toggle("windows-platform", navigator.userAgent.includes("Windows"));
     document.body.classList.toggle("settings-only", settingsOnly);
     document.body.classList.toggle("widget-mode", widget.enabled);
   });
