@@ -987,6 +987,27 @@ pub fn run() {
                 }
             });
 
+            // Let the transparent WebView provide the rounded shape instead
+            // of Windows adding its own, differently-sized native corners.
+            #[cfg(windows)]
+            if let Some(win) = app.get_webview_window("main") {
+                use windows_sys::Win32::Graphics::Dwm::{
+                    DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+                };
+
+                if let Ok(hwnd) = win.hwnd() {
+                    let preference = DWMWCP_DONOTROUND;
+                    unsafe {
+                        let _ = DwmSetWindowAttribute(
+                            hwnd.0,
+                            DWMWA_WINDOW_CORNER_PREFERENCE as _,
+                            &preference as *const _ as _,
+                            std::mem::size_of_val(&preference) as _,
+                        );
+                    }
+                }
+            }
+
             // Show window (starts as visible:false to avoid transparent flash)
             if let Some(win) = app.get_webview_window("main") { let _ = win.show(); }
 

@@ -1,6 +1,6 @@
 [package]
 name = "spotify-cover-art-v2"
-version = "0.2.1"
+version = "0.2.0"
 description = "Spotify Cover Art Display"
 edition = "2021"
 
@@ -34,3 +34,6 @@ hex         = "0.4"
 rand        = "0.8"
 urlencoding = "2"
 url         = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
