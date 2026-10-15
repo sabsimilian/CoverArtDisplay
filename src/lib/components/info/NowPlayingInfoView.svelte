@@ -8,9 +8,9 @@
   import { coverPalette } from "$lib/utils/cover-palette.svelte";
   import { fitPanel } from "$lib/utils/fit-panel.svelte";
   import { ticking, formatClock, formatTrackTime } from "$lib/utils/now.svelte";
-  import { marquee } from "$lib/actions/marquee";
   import InfoFrame from "./InfoFrame.svelte";
   import InfoCover from "./InfoCover.svelte";
+  import ScrollingText from "./ScrollingText.svelte";
   import type { TrackInfo } from "$lib/tauri/types";
 
   // Text swaps while the panel is faded out on a track change.
@@ -146,10 +146,8 @@
       </div>
 
       <div class="flex min-w-0 shrink-0 items-center" style="margin-top: {u(8)}; gap: {u(16)};">
-        <div class="min-w-0 flex-1 overflow-hidden">
-          <div class="whitespace-nowrap" style="font-size: {u(76)}; font-weight: 900; letter-spacing: -0.025em; line-height: 1.15;" use:marquee={shown.name}>
-            {shown.name}
-          </div>
+        <div class="min-w-0 flex-1">
+          <ScrollingText text={shown.name} style="font-size: {u(76)}; font-weight: 900; letter-spacing: -0.025em; line-height: 1.15;" />
         </div>
         {#if liked}
           <svg viewBox="0 0 24 24" class="shrink-0" style="width: {u(40)}; height: {u(40)}; color: {palette.value.accent};" aria-label="In your Liked Songs">
@@ -161,10 +159,8 @@
         {/if}
       </div>
 
-      <div class="shrink-0 overflow-hidden" style="margin-top: {u(4)};">
-        <div class="whitespace-nowrap" style="font-size: {u(32)}; font-weight: 500; line-height: 1.3; color: rgba(255,255,255,0.8);" use:marquee={shown.artist}>
-          {shown.artist}
-        </div>
+      <div class="shrink-0" style="margin-top: {u(4)};">
+        <ScrollingText text={shown.artist} style="font-size: {u(32)}; font-weight: 500; line-height: 1.3; color: rgba(255,255,255,0.8);" />
       </div>
 
       {#if showLabel && album?.label}
