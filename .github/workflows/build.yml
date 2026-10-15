@@ -1,13 +1,16 @@
-name: Build
+name: Build and Release
 
-# Manual for now — this is for pulling down test builds per platform, not an
-# auto-release pipeline. Add a `push: tags: ["v*"]` trigger (and a release
-# step) once you're ready to actually publish to GitHub Releases.
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
   build:
+    if: github.ref != 'refs/tags/v0.2.0-windows-fix'
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +60,14 @@ jobs:
       - run: npm ci
 
       - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Spotify Cover Art ${{ github.ref_name }}"
+          releaseBody: "Bug fixes and platform-specific improvements. Download the installer for your platform below."
+          releaseDraft: false
+          prerelease: false
           args: ${{ matrix.args }}
 
       - uses: actions/upload-artifact@v4
@@ -67,3 +77,44 @@ jobs:
             src-tauri/target/**/bundle/**
             !src-tauri/target/**/bundle/**/*.map
           retention-days: 14
+
+  replace-windows-release:
+    if: github.ref == 'refs/tags/v0.2.0-windows-fix'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: npm ci
+
+      - name: Build Windows NSIS installer
+        run: npm run tauri -- build --bundles nsis
+
+      - name: Replace v0.2.0 installer and remove superseded release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $installer = Get-ChildItem "src-tauri/target/release/bundle/nsis/*_x64-setup.exe" | Select-Object -First 1
+          if ($null -eq $installer) { throw "Windows NSIS installer was not produced." }
+
+          gh release upload v0.2.0 $installer.FullName --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          gh release edit v0.2.0 --notes "Windows widget corner rendering fix. Download the Windows installer below."
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $releases = gh release list --json tagName --jq '.[].tagName'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($releases -contains "v0.2.1") {
+            gh release delete v0.2.1 --yes --cleanup-tag
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+          gh api --method DELETE "repos/$env:GITHUB_REPOSITORY/git/refs/tags/v0.2.0-windows-fix"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

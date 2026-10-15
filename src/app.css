@@ -35,6 +35,9 @@ body {
 body.settings-only {
   border-radius: 0;
 }
+body.widget-mode {
+  border-radius: 24px;
+}
 
 /* The settings popup window isn't OS-level transparent (unlike the main
    window) — see the comment on this class's toggle in +layout.svelte. */

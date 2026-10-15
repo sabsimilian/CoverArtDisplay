@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, sync::Mutex};
+use std::{fs, path::PathBuf, sync::{atomic::{AtomicBool, Ordering}, Mutex}};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
@@ -26,6 +26,7 @@ struct AppState {
     tokens:        Mutex<TokenData>,
     auth_state:    Mutex<Option<String>>,
     code_verifier: Mutex<Option<String>>,
+    widget_mode_active: AtomicBool,
 }
 
 // ── Serialisable response types ───────────────────────────────────────────────
@@ -689,12 +690,13 @@ fn is_newer_version(latest: &str, current: &str) -> bool {
 // they differ (e.g. "aarch64" vs "arm64").
 fn pick_platform_asset(assets: &[serde_json::Value]) -> (Option<String>, Option<String>) {
     let arch_aliases: &[&str] = match std::env::consts::ARCH {
-        "x86_64" => &["x86_64", "amd64"],
+        "x86_64" => &["x86_64", "amd64", "x64"],
         "aarch64" => &["aarch64", "arm64"],
         "arm" => &["armv7", "armhf", "arm"],
         "x86" => &["i386", "i686", "x86"],
         other => &[other],
     };
+    let is_universal_macos = cfg!(target_os = "macos");
     let exts: &[&str] = if cfg!(target_os = "windows") {
         &[".exe", ".msi"]
     } else if cfg!(target_os = "macos") {
@@ -705,7 +707,9 @@ fn pick_platform_asset(assets: &[serde_json::Value]) -> (Option<String>, Option<
     for ext in exts {
         if let Some(a) = assets.iter().find(|a| {
             let name = a["name"].as_str().unwrap_or("").to_lowercase();
-            name.ends_with(ext) && arch_aliases.iter().any(|alias| name.contains(alias))
+            name.ends_with(ext)
+                && (arch_aliases.iter().any(|alias| name.contains(alias))
+                    || (is_universal_macos && name.contains("universal")))
         }) {
             return (
                 a["browser_download_url"].as_str().map(|s| s.to_string()),
@@ -803,22 +807,65 @@ fn get_auto_start(app: AppHandle) -> Result<bool, String> {
 // throw that away on every single restart, defeating the whole point of
 // persisting it. true is for an actual fresh manual toggle-on, where there's
 // no prior widget size to preserve and resetting to a sane default is right.
+#[cfg(windows)]
+fn set_windows_window_shape(window: &tauri::WebviewWindow, radius: f64) {
+    use windows_sys::Win32::Graphics::Dwm::{
+        DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE,
+        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+    };
+    use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, DeleteObject, SetWindowRgn};
+
+    let Ok(hwnd) = window.hwnd() else { return };
+    let border_color = DWMWA_COLOR_NONE;
+    let corner_preference = DWMWCP_DONOTROUND;
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd.0,
+            DWMWA_BORDER_COLOR as _,
+            &border_color as *const _ as _,
+            std::mem::size_of_val(&border_color) as _,
+        );
+        let _ = DwmSetWindowAttribute(
+            hwnd.0,
+            DWMWA_WINDOW_CORNER_PREFERENCE as _,
+            &corner_preference as *const _ as _,
+            std::mem::size_of_val(&corner_preference) as _,
+        );
+    }
+
+    let (Ok(size), Ok(scale_factor)) = (window.outer_size(), window.scale_factor()) else { return };
+    let max_radius = (size.width.min(size.height) / 2).max(1) as f64;
+    let diameter = ((radius * scale_factor).round().clamp(1.0, max_radius) as i32) * 2;
+    let region = unsafe {
+        CreateRoundRectRgn(0, 0, size.width as i32, size.height as i32, diameter, diameter)
+    };
+    if !region.is_null() && unsafe { SetWindowRgn(hwnd.0, region, 1) } == 0 {
+        unsafe { let _ = DeleteObject(region as _); }
+    }
+}
+
 #[tauri::command]
-fn enable_widget_mode(window: tauri::WebviewWindow, reset_size: bool) -> Result<(), String> {
+fn enable_widget_mode(window: tauri::WebviewWindow, reset_size: bool, state: State<AppState>) -> Result<(), String> {
     use tauri::LogicalSize;
     // Exact 4:5 ratio (was 308x352 ≈ 7:8) — keep the same rough footprint.
     window.set_min_size(Some(LogicalSize::new(154_f64, 193_f64))).map_err(|e| e.to_string())?;
     if reset_size {
         window.set_size(LogicalSize::new(308_f64, 385_f64)).map_err(|e| e.to_string())?;
     }
+    state.widget_mode_active.store(true, Ordering::Relaxed);
+    #[cfg(windows)]
+    set_windows_window_shape(&window, 24.0);
     Ok(())
 }
 
 #[tauri::command]
-fn disable_widget_mode(window: tauri::WebviewWindow) -> Result<(), String> {
+fn disable_widget_mode(window: tauri::WebviewWindow, state: State<AppState>) -> Result<(), String> {
     use tauri::LogicalSize;
+    state.widget_mode_active.store(false, Ordering::Relaxed);
     window.set_min_size(Some(LogicalSize::new(320_f64, 400_f64))).map_err(|e| e.to_string())?;
     window.set_size(LogicalSize::new(800_f64, 1000_f64)).map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    set_windows_window_shape(&window, 12.0);
     Ok(())
 }
 
@@ -1001,6 +1048,7 @@ pub fn run() {
             tokens:        Mutex::new(TokenData::default()),
             auth_state:    Mutex::new(None),
             code_verifier: Mutex::new(None),
+            widget_mode_active: AtomicBool::new(false),
         })
         .setup(|app| {
             // Restore persisted tokens
@@ -1032,6 +1080,11 @@ pub fn run() {
                     }
                 }
             });
+
+            #[cfg(windows)]
+            if let Some(win) = app.get_webview_window("main") {
+                set_windows_window_shape(&win, 12.0);
+            }
 
             // Show window (starts as visible:false to avoid transparent flash)
             if let Some(win) = app.get_webview_window("main") { let _ = win.show(); }
@@ -1080,7 +1133,18 @@ pub fn run() {
                 // Moved events doesn't hammer disk I/O on every pixel.
                 let debounce_id = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
                 let app_handle = app.handle().clone();
+                let shape_window = win.clone();
                 win.on_window_event(move |event| {
+                    #[cfg(windows)]
+                    if matches!(event, tauri::WindowEvent::Resized(_)) {
+                        let radius = if app_handle.state::<AppState>().widget_mode_active.load(Ordering::Relaxed) {
+                            24.0
+                        } else {
+                            12.0
+                        };
+                        set_windows_window_shape(&shape_window, radius);
+                    }
+
                     if !matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)) {
                         return;
                     }
