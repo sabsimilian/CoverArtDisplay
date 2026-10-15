@@ -20,6 +20,8 @@ export async function fetchRandomAlbumWithRetry(
     try {
       const result = await spotifyApi.getRandomAlbum();
       if (result.album) return result.album;
+      // Retrying a rate-limited request only prolongs the lockout.
+      if (result.error === "Rate limited") return null;
     } catch {
       // Fall through to retry.
     }

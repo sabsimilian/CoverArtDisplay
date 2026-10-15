@@ -17,6 +17,8 @@ export interface TrackInfo {
 export interface TrackResult {
   track?: TrackInfo;
   error?: string;
+  // Set when Spotify rate limited the request: seconds to wait before retrying.
+  retryAfterSecs?: number;
 }
 
 export interface SpotifyImage {

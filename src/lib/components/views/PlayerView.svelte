@@ -6,8 +6,10 @@
   import PlaybackControls from "$lib/components/PlaybackControls.svelte";
   import NowPlayingProgressBar from "$lib/components/NowPlayingProgressBar.svelte";
   import { marquee } from "$lib/actions/marquee";
+  import { loadedImage } from "$lib/utils/loaded-image.svelte";
 
   const track = $derived(playback.currentTrack);
+  const cover = loadedImage(() => track?.coverUrl ?? "");
 
   let hovering = $state(false);
 </script>
@@ -22,7 +24,7 @@
   onmouseenter={() => (hovering = true)}
   onmouseleave={() => (hovering = false)}
 >
-  <CoverArt coverUrl={track?.coverUrl ?? ""} />
+  <CoverArt coverUrl={cover.url} />
 
   {#if settings.value.controlsEnabled}
     <PlaybackControls {hovering} />
@@ -32,7 +34,7 @@
     <NowPlayingProgressBar />
   {/if}
 
-  <MetadataStrip coverUrl={track?.coverUrl ?? ""}>
+  <MetadataStrip coverUrl={cover.url}>
     <div
       class="w-full font-bold whitespace-nowrap"
       style="font-size: clamp(14px, 6vh, 56px); font-family: var(--app-font-family); letter-spacing: -0.01em; line-height: 1.15; color: var(--text-color); opacity: var(--text-opacity);"

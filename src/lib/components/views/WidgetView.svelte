@@ -4,6 +4,7 @@
   import { playback } from "$lib/state/playback.svelte";
   import { widget, syncWidgetIdleShuffle } from "$lib/state/widget.svelte";
   import { settings } from "$lib/state/settings.svelte";
+  import { loadedImage } from "$lib/utils/loaded-image.svelte";
   import MetadataStrip from "$lib/components/MetadataStrip.svelte";
   import PlaybackControls from "$lib/components/PlaybackControls.svelte";
   import NowPlayingProgressBar from "$lib/components/NowPlayingProgressBar.svelte";
@@ -27,7 +28,10 @@
   const track = $derived(playback.currentTrack);
   const idleAlbum = $derived(widget.idleAlbum);
 
-  const coverUrl = $derived(playback.isPlaying ? (track?.coverUrl ?? "") : (idleAlbum?.images?.[0]?.url ?? ""));
+  const cover = loadedImage(() =>
+    playback.isPlaying ? (track?.coverUrl ?? "") : (idleAlbum?.images?.[0]?.url ?? ""),
+  );
+  const coverUrl = $derived(cover.url);
   const title = $derived(playback.isPlaying ? (track?.name ?? "Not playing") : (idleAlbum?.name ?? "Not playing"));
   const subtitle = $derived(playback.isPlaying ? (track?.artist ?? "") : idleAlbum ? `by ${idleAlbum.artists}` : "");
 </script>
