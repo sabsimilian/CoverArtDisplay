@@ -264,6 +264,15 @@
   </div>
 
   <div class="mb-4 flex items-center justify-between py-1">
+    <label for="hide-cursor-toggle" class="font-medium text-white">Always Hide Cursor</label>
+    <ToggleSwitch
+      id="hide-cursor-toggle"
+      checked={settings.value.alwaysHideCursor}
+      onchange={(checked) => update({ alwaysHideCursor: checked })}
+    />
+  </div>
+
+  <div class="mb-4 flex items-center justify-between py-1">
     <label for="info-layout-toggle" class="font-medium text-white">
       Info Layout (Now Playing / Library Covers)
     </label>

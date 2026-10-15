@@ -44,6 +44,7 @@ export interface AppSettings {
   showUpNext: boolean;
   showWeather: boolean;
   weatherLocation: string; // "lat,lon" or a place name; empty hides the weather
+  alwaysHideCursor: boolean; // never show the cursor, even when the mouse moves
 }
 
 const DEFAULTS: AppSettings = {
@@ -74,6 +75,7 @@ const DEFAULTS: AppSettings = {
   showUpNext: true,
   showWeather: true,
   weatherLocation: "",
+  alwaysHideCursor: false,
 };
 
 const store = persisted<AppSettings>("appSettings", DEFAULTS);
