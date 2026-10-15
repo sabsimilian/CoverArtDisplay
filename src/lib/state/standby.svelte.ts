@@ -12,6 +12,7 @@
 import { playback } from "./playback.svelte";
 import { settings } from "./settings.svelte";
 import { fetchRandomAlbumWithRetry } from "../utils/random-album";
+import { isRateLimited } from "./playback.svelte";
 import type { AlbumInfo } from "../tauri/types";
 import type { StandbyMode } from "./settings.svelte";
 
@@ -73,6 +74,9 @@ function refreshPhoto(): void {
 }
 
 async function refreshAlbum(): Promise<void> {
+  // Same Spotify quota as the now-playing poll — keep the current cover
+  // rather than spend requests (and retries) during a rate-limit lockout.
+  if (isRateLimited()) return;
   const generation = ++requestGeneration;
   const album = await fetchRandomAlbumWithRetry(() => requestGeneration === generation);
   if (requestGeneration === generation) currentAlbum = album;

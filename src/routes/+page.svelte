@@ -10,8 +10,11 @@
   import PlayerView from "$lib/components/views/PlayerView.svelte";
   import StandbyView from "$lib/components/views/StandbyView.svelte";
   import WidgetView from "$lib/components/views/WidgetView.svelte";
+  import NowPlayingInfoView from "$lib/components/info/NowPlayingInfoView.svelte";
   import SettingsModal from "$lib/components/settings/SettingsModal.svelte";
+  import RateLimitNotice from "$lib/components/RateLimitNotice.svelte";
   import { isSettingsOnly } from "$lib/utils/settings-only";
+  import { startCursorAutoHide } from "$lib/utils/cursor-autohide";
 
   // The settings popup window (opened via open_settings_window in the Rust
   // backend) loads this exact same page with ?settingsOnly=1 — same pattern
@@ -23,6 +26,7 @@
     if (settingsOnly) return;
     initAuth();
     startPolling();
+    const stopCursorAutoHide = startCursorAutoHide();
     if (settings.value.startInFullscreen) {
       setTimeout(() => appApi.toggleFullscreen(), 300);
     }
@@ -42,7 +46,10 @@
         if (wasActive) enableWidgetMode(false);
       });
     }
-    return () => stopPolling();
+    return () => {
+      stopPolling();
+      stopCursorAutoHide();
+    };
   });
 </script>
 
@@ -55,6 +62,8 @@
     <LoginView />
   {:else if widget.enabled}
     <WidgetView />
+  {:else if playback.isPlaying && settings.value.infoLayoutEnabled}
+    <NowPlayingInfoView />
   {:else if playback.isPlaying}
     <PlayerView />
   {:else}
@@ -64,4 +73,5 @@
 
 {#if !settingsOnly}
   <SettingsModal />
+  <RateLimitNotice />
 {/if}

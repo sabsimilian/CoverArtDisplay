@@ -13,6 +13,11 @@ import type {
   UpdateCheckResult,
   VideosResult,
   PhotosResult,
+  LookupResult,
+  AlbumDetails,
+  QueueItem,
+  RecentTrack,
+  WeatherNow,
 } from "./types";
 
 // Local file paths (from folder scans / file pickers) need to go through
@@ -32,6 +37,13 @@ export const spotifyApi = {
   getRandomAlbum: (): Promise<AlbumResult> => invoke("spotify_get_random_album"),
   getSavedAlbums: (limit = 50, offset = 0): Promise<SavedAlbumsResult> =>
     invoke("spotify_get_saved_albums", { limit, offset }),
+  getAlbumDetails: (albumId: string): Promise<LookupResult<AlbumDetails>> =>
+    invoke("spotify_get_album_details", { albumId }),
+  isTrackSaved: (trackId: string): Promise<LookupResult<boolean>> => invoke("spotify_is_track_saved", { trackId }),
+  getQueue: (): Promise<LookupResult<QueueItem[]>> => invoke("spotify_get_queue"),
+  getContextName: (contextUri: string): Promise<LookupResult<string>> =>
+    invoke("spotify_get_context_name", { contextUri }),
+  getLastPlayed: (): Promise<LookupResult<RecentTrack>> => invoke("spotify_get_last_played"),
 
   play: (): Promise<void> => invoke("spotify_play"),
   pause: (): Promise<void> => invoke("spotify_pause"),
@@ -63,6 +75,7 @@ export const appApi = {
 
   openExternal: (url: string): Promise<void> => invoke("open_external", { url }),
   getAppVersion: (): Promise<string> => invoke("get_app_version"),
+  getWeather: (location: string): Promise<WeatherNow> => invoke("get_weather", { location }),
   checkForUpdates: (): Promise<UpdateCheckResult> => invoke("check_for_updates"),
   downloadAndInstallUpdate: (url: string, fileName: string): Promise<void> =>
     invoke("download_and_install_update", { url, fileName }),

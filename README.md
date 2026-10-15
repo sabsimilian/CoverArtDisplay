@@ -64,6 +64,14 @@ An optional ambient clock can overlay any idle mode.
   <img src="docs/screenshots/idle-video-art.png" width="380" alt="Video Art idle mode with the ambient clock" />
 </p>
 
+**Info Layout (portrait displays)**
+An opt-in layout for a dedicated portrait screen seen from across the room (built on a 7" 600×1076 panel). The cover sits on top, edge to edge. Below it, a panel coloured from the cover shows the track, album, year and track number, a ♥ for Liked Songs, the next two in the queue with the playlist name, the playing device, the clock, the date and the weather. Library Covers gets a matching standby screen with a large clock and the last played track. It's display-only (no playback controls), scales with the window width, and drops the least important rows rather than shrinking text when space runs out. Turn it on in App Settings → Info Layout, where you'll also find Text Size, Burn-in Shift, Show Up Next and Weather Location (a city or `lat,lon`, via [Open-Meteo](https://open-meteo.com/), no key needed). The playlist name and "Last played" need two extra Spotify permissions, so log out and back in once after updating.
+
+<p align="center">
+  <img src="docs/screenshots/info-layout-now-playing.png" width="300" alt="Info Layout: now playing" />
+  <img src="docs/screenshots/info-layout-standby.png" width="300" alt="Info Layout: standby with a large clock" />
+</p>
+
 **Deep customization**
 Accent color, metadata background style (solid color / color extracted from the cover / the cover art itself, blurred and extended), transparency, text color and opacity, font, and more — all through an in-app settings window. Also available as a standalone popup window when running in Widget Mode.
 
@@ -105,6 +113,18 @@ Grab the latest build for your platform from the [Releases page](https://github.
 5. Open the gear menu (top-right corner) for Settings, Widget Mode, Fullscreen, and Logout.
 
 A Spotify account is required to sign in. Playback control (play/pause/skip) requires **Spotify Premium**, per Spotify's own API restrictions — reading what's currently playing works on any account.
+
+### Using your own Spotify app
+
+The built-in Spotify app is in Spotify's development mode, which only lets in accounts its owner has added. If login succeeds but nothing shows up (Spotify returns `403 The user is not registered for this application`), use your own:
+
+1. Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) with Redirect URI `spotify-cover-art://auth` and **Web API** ticked.
+2. Put its Client ID (no client secret needed) either in the `SPOTIFY_CLIENT_ID` environment variable, or on one line in a `client_id` file in the app's config folder:
+   - Linux: `~/.config/com.spotifycoverart.app.v2/client_id`
+   - Windows: `%APPDATA%\com.spotifycoverart.app.v2\client_id`
+3. Log out and log back in.
+
+Development-mode apps also have a small daily request quota, shared by every app on your developer account. If it runs out, Spotify locks the app out for hours; the app then waits it out and shows when it will resume.
 
 ## Known issues
 

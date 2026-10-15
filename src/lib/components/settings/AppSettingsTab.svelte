@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { settings, setBackgroundStyle, backgroundStyle, getAutoStart, setAutoStart } from "$lib/state/settings.svelte";
-  import type { BackgroundStyle } from "$lib/state/settings.svelte";
+  import type { BackgroundStyle, TextSize } from "$lib/state/settings.svelte";
   import { appApi } from "$lib/tauri/api";
   import { alertDialog, confirmDialog } from "$lib/state/dialog.svelte";
   import ToggleSwitch from "$lib/components/ToggleSwitch.svelte";
@@ -29,6 +29,12 @@
     { id: "static", label: "Static" },
     { id: "gradient", label: "Gradient" },
     { id: "coverimage", label: "Cover Image" },
+  ];
+
+  const textSizes: { id: TextSize; label: string }[] = [
+    { id: "small", label: "Small" },
+    { id: "normal", label: "Normal" },
+    { id: "large", label: "Large" },
   ];
 
   let autoStartEnabled = $state(false);
@@ -262,6 +268,87 @@
       onchange={(checked) => update({ progressBarEnabled: checked })}
     />
   </div>
+
+  <div class="mb-4 flex items-center justify-between py-1">
+    <label for="hide-cursor-toggle" class="font-medium text-white">Always Hide Cursor</label>
+    <ToggleSwitch
+      id="hide-cursor-toggle"
+      checked={settings.value.alwaysHideCursor}
+      onchange={(checked) => update({ alwaysHideCursor: checked })}
+    />
+  </div>
+
+  <div class="mb-4 flex items-center justify-between py-1">
+    <label for="info-layout-toggle" class="font-medium text-white">
+      Info Layout (Now Playing / Library Covers)
+    </label>
+    <ToggleSwitch
+      id="info-layout-toggle"
+      checked={settings.value.infoLayoutEnabled}
+      onchange={(checked) => update({ infoLayoutEnabled: checked })}
+    />
+  </div>
+
+  {#if settings.value.infoLayoutEnabled}
+    <div class="mb-4">
+      <div class="mb-2 font-medium text-white">Text Size</div>
+      <div class="flex gap-1 rounded-lg border border-[#333] bg-[#1a1a1a] p-0.75">
+        {#each textSizes as ts (ts.id)}
+          <button
+            type="button"
+            class="flex-1 cursor-pointer rounded-md px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors"
+            style={settings.value.textSize === ts.id
+              ? "background-color: var(--accent-color); color: white;"
+              : "color: rgba(255,255,255,0.65);"}
+            onclick={() => update({ textSize: ts.id })}
+          >
+            {ts.label}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <div class="mb-4 flex items-center justify-between py-1">
+      <label for="burn-in-toggle" class="font-medium text-white">Burn-in Shift</label>
+      <ToggleSwitch
+        id="burn-in-toggle"
+        checked={settings.value.burnInShift}
+        onchange={(checked) => update({ burnInShift: checked })}
+      />
+    </div>
+
+    <div class="mb-4 flex items-center justify-between py-1">
+      <label for="up-next-toggle" class="font-medium text-white">Show Up Next</label>
+      <ToggleSwitch
+        id="up-next-toggle"
+        checked={settings.value.showUpNext}
+        onchange={(checked) => update({ showUpNext: checked })}
+      />
+    </div>
+
+    <div class="mb-4 flex items-center justify-between py-1">
+      <label for="weather-toggle" class="font-medium text-white">Show Weather</label>
+      <ToggleSwitch
+        id="weather-toggle"
+        checked={settings.value.showWeather}
+        onchange={(checked) => update({ showWeather: checked })}
+      />
+    </div>
+
+    {#if settings.value.showWeather}
+      <div class="mb-4 flex items-center justify-between gap-4 py-1">
+        <label for="weather-location" class="shrink-0 font-medium text-white">Weather Location</label>
+        <input
+          id="weather-location"
+          type="text"
+          placeholder="City, or lat,lon"
+          class="w-56 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:border-[var(--accent-color)] focus:outline-none"
+          value={settings.value.weatherLocation}
+          onchange={(e) => update({ weatherLocation: e.currentTarget.value.trim() })}
+        />
+      </div>
+    {/if}
+  {/if}
 
   <div class="mt-2.5 flex items-center justify-between border-t border-[#333] pt-2.5">
     <div class="text-white/60">Version: {appVersion}</div>

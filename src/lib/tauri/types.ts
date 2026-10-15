@@ -12,11 +12,52 @@ export interface TrackInfo {
   isPlaying: boolean;
   progressMs: number;
   durationMs: number;
+  albumId: string;
+  releaseDate: string;
+  trackNumber: number;
+  totalTracks: number;
+  contextType?: string;
+  contextUri?: string;
+  deviceName: string;
+  deviceType: string;
+  volumePercent?: number;
+  shuffle: boolean;
+  repeat: "off" | "track" | "context";
+}
+
+// Shared shape of the on-demand lookups (album details, liked, queue...).
+export interface LookupResult<T> {
+  value?: T;
+  error?: string;
+  retryAfterSecs?: number;
+}
+
+export interface AlbumDetails {
+  label: string;
+  pLine?: string;
+}
+
+export interface QueueItem {
+  name: string;
+  artist: string;
+}
+
+export interface RecentTrack {
+  name: string;
+  artist: string;
+  playedAt: string;
+}
+
+export interface WeatherNow {
+  temperature: number;
+  weatherCode: number;
 }
 
 export interface TrackResult {
   track?: TrackInfo;
   error?: string;
+  // Set when Spotify rate limited the request: seconds to wait before retrying.
+  retryAfterSecs?: number;
 }
 
 export interface SpotifyImage {
