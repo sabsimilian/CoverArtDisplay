@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { settings, setBackgroundStyle, backgroundStyle, getAutoStart, setAutoStart } from "$lib/state/settings.svelte";
-  import type { BackgroundStyle } from "$lib/state/settings.svelte";
+  import type { BackgroundStyle, TextSize } from "$lib/state/settings.svelte";
   import { appApi } from "$lib/tauri/api";
   import { alertDialog, confirmDialog } from "$lib/state/dialog.svelte";
   import ToggleSwitch from "$lib/components/ToggleSwitch.svelte";
@@ -29,6 +29,12 @@
     { id: "static", label: "Static" },
     { id: "gradient", label: "Gradient" },
     { id: "coverimage", label: "Cover Image" },
+  ];
+
+  const textSizes: { id: TextSize; label: string }[] = [
+    { id: "small", label: "Small" },
+    { id: "normal", label: "Normal" },
+    { id: "large", label: "Large" },
   ];
 
   let autoStartEnabled = $state(false);
@@ -284,6 +290,24 @@
   </div>
 
   {#if settings.value.infoLayoutEnabled}
+    <div class="mb-4">
+      <div class="mb-2 font-medium text-white">Text Size</div>
+      <div class="flex gap-1 rounded-lg border border-[#333] bg-[#1a1a1a] p-0.75">
+        {#each textSizes as ts (ts.id)}
+          <button
+            type="button"
+            class="flex-1 cursor-pointer rounded-md px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors"
+            style={settings.value.textSize === ts.id
+              ? "background-color: var(--accent-color); color: white;"
+              : "color: rgba(255,255,255,0.65);"}
+            onclick={() => update({ textSize: ts.id })}
+          >
+            {ts.label}
+          </button>
+        {/each}
+      </div>
+    </div>
+
     <div class="mb-4 flex items-center justify-between py-1">
       <label for="burn-in-toggle" class="font-medium text-white">Burn-in Shift</label>
       <ToggleSwitch

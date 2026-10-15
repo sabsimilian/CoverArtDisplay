@@ -61,7 +61,10 @@ async function refresh(): Promise<void> {
   try {
     const result = await appApi.getWeather(location);
     if (location === currentLocation) current = result;
-  } catch {
+  } catch (e) {
+    // Hide the line rather than show stale or partial weather.
+    console.warn(`Weather for "${location}" failed: ${e}`);
+    if (location === currentLocation) current = null;
     delay = RETRY_MS;
   }
   if (users > 0 && location === currentLocation && !timer) timer = setTimeout(refresh, delay);

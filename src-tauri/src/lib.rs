@@ -409,7 +409,7 @@ async fn spotify_start_auth(app: AppHandle, state: State<'_, AppState>) -> Resul
     *state.auth_state.lock().unwrap()    = Some(auth_st.clone());
     *state.code_verifier.lock().unwrap() = Some(verifier);
 
-    let scope = "user-read-private user-read-email user-read-currently-playing user-read-playback-state user-library-read user-modify-playback-state user-read-recently-played";
+    let scope = "user-read-private user-read-email user-read-currently-playing user-read-playback-state user-library-read user-modify-playback-state user-read-recently-played playlist-read-private playlist-read-collaborative";
     let url = format!(
         "https://accounts.spotify.com/authorize?client_id={}&response_type=code&redirect_uri={}&scope={}&state={}&code_challenge={}&code_challenge_method=S256&show_dialog=false",
         client_id(&app),
@@ -666,7 +666,8 @@ async fn spotify_get_last_played(app: AppHandle, state: State<'_, AppState>) -> 
 }
 
 // Open-Meteo (no API key). `location` is "lat,lon" or a place name, which is
-// geocoded first. Returns the temperature and WMO weather code as-is; the
+// geocoded first: "Brantford, Ontario, Canada" searches for "Brantford" and
+// prefers the result whose region or country matches the rest. Returns the temperature and WMO weather code as-is; the
 // frontend turns the code into words.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -683,11 +684,25 @@ async fn get_weather(location: String) -> Result<WeatherNow, String> {
     let (lat, lon) = match coords {
         Some(c) => c,
         None => {
+            let mut parts = location.split(',').map(|p| p.trim().to_lowercase()).filter(|p| !p.is_empty());
+            let name = parts.next().unwrap_or_default();
+            let hints: Vec<String> = parts.collect();
             let geo: serde_json::Value = client
-                .get(format!("https://geocoding-api.open-meteo.com/v1/search?count=1&name={}", urlencoding::encode(location.trim())))
+                .get(format!("https://geocoding-api.open-meteo.com/v1/search?count=10&name={}", urlencoding::encode(&name)))
                 .send().await.map_err(|e| e.to_string())?
                 .json().await.map_err(|e| e.to_string())?;
-            let r = &geo["results"][0];
+            let results = geo["results"].as_array().cloned().unwrap_or_default();
+            let matches = |r: &serde_json::Value, hint: &str| {
+                ["admin1", "country", "country_code"].iter()
+                    .any(|k| r[*k].as_str().is_some_and(|v| v.to_lowercase() == hint))
+            };
+            // rev(): max_by_key keeps the last of equal scores; we want the first.
+            let r = results.iter().rev()
+                .max_by_key(|r| hints.iter().filter(|h| matches(r, h)).count())
+                .filter(|r| hints.is_empty() || hints.iter().any(|h| matches(r, h)))
+                .or(results.first())
+                .cloned()
+                .unwrap_or_default();
             match (r["latitude"].as_f64(), r["longitude"].as_f64()) {
                 (Some(lat), Some(lon)) => (lat, lon),
                 _ => return Err(format!("Unknown location: {location}")),

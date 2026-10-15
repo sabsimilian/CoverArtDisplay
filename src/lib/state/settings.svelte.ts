@@ -13,6 +13,10 @@ import { appApi } from "../tauri/api";
 
 export type StandbyMode = "videoart" | "librarycovers" | "pictureframe";
 export type BackgroundStyle = "static" | "gradient" | "coverimage";
+export type TextSize = "small" | "normal" | "large";
+
+// Multiplier on the info layout's --u unit (see InfoFrame.svelte).
+export const TEXT_SIZES: Record<TextSize, number> = { small: 0.9, normal: 1, large: 1.15 };
 
 export interface AppSettings {
   standbyModePreference: StandbyMode;
@@ -45,6 +49,7 @@ export interface AppSettings {
   showWeather: boolean;
   weatherLocation: string; // "lat,lon" or a place name; empty hides the weather
   alwaysHideCursor: boolean; // never show the cursor, even when the mouse moves
+  textSize: TextSize; // info layout only
 }
 
 const DEFAULTS: AppSettings = {
@@ -76,6 +81,7 @@ const DEFAULTS: AppSettings = {
   showWeather: true,
   weatherLocation: "",
   alwaysHideCursor: false,
+  textSize: "normal",
 };
 
 const store = persisted<AppSettings>("appSettings", DEFAULTS);

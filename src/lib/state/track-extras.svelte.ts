@@ -32,16 +32,27 @@ export const trackExtras = {
 
 // Runs fn once per key at a time; a rate-limited answer locks out the poll as
 // well, and other failures are left to the next track change to retry.
-async function lookup<T>(key: string, fn: () => Promise<LookupResult<T>>, store: (value: T) => void): Promise<void> {
+async function lookup<T>(
+  key: string,
+  fn: () => Promise<LookupResult<T>>,
+  store: (value: T) => void,
+  onFail?: () => void,
+): Promise<void> {
   if (pending.has(key) || failed.has(key) || isRateLimited()) return;
   pending.add(key);
   try {
     const result = await fn();
     if (result.retryAfterSecs !== undefined) noteRateLimit(result.retryAfterSecs);
     else if (result.value !== undefined) store(result.value);
-    else failed.add(key);
-  } catch {
+    else {
+      console.warn(`Spotify lookup ${key} failed: ${result.error}`);
+      failed.add(key);
+      onFail?.();
+    }
+  } catch (e) {
+    console.warn(`Spotify lookup ${key} failed: ${e}`);
     failed.add(key);
+    onFail?.();
   } finally {
     pending.delete(key);
   }
@@ -56,9 +67,18 @@ export function fetchTrackExtras(track: TrackInfo, wantQueue: boolean): void {
   const uri = track.contextUri;
   const named = track.contextType && track.contextType !== "collection";
   if (wantQueue && uri && named && !(uri in contextNames)) {
-    void lookup(`context:${uri}`, () => spotifyApi.getContextName(uri), (v) => {
-      contextNames[uri] = v;
-    });
+    void lookup(
+      `context:${uri}`,
+      () => spotifyApi.getContextName(uri),
+      (v) => {
+        contextNames[uri] = v;
+      },
+      // Private playlists need playlist-read-private, which tokens from
+      // before it was added lack: cache the failure ("" hides the name).
+      () => {
+        contextNames[uri] = "";
+      },
+    );
   }
   if (track.id && !(track.id in liked)) {
     void lookup(`liked:${track.id}`, () => spotifyApi.isTrackSaved(track.id), (v) => {

@@ -6,13 +6,16 @@
   import { weather, watchWeather } from "$lib/state/weather.svelte";
   import { loadedImage } from "$lib/utils/loaded-image.svelte";
   import { coverPalette } from "$lib/utils/cover-palette.svelte";
+  import { fitPanel } from "$lib/utils/fit-panel.svelte";
   import { ticking, formatClock, formatTrackTime } from "$lib/utils/now.svelte";
+  import { marquee } from "$lib/actions/marquee";
   import InfoFrame from "./InfoFrame.svelte";
   import InfoCover from "./InfoCover.svelte";
   import type { TrackInfo } from "$lib/tauri/types";
 
   // Text swaps while the panel is faded out on a track change.
   const SWAP_MS = 450;
+  const UP_NEXT_ROWS = 2;
 
   const track = $derived(playback.currentTrack);
   const cover = loadedImage(() => track?.coverUrl ?? "");
@@ -65,7 +68,9 @@
   const year = $derived(shown?.releaseDate.slice(0, 4) ?? "");
   const album = $derived(shown ? trackExtras.album(shown.albumId) : undefined);
   const liked = $derived(shown ? trackExtras.liked(shown.id) : false);
-  const queue = $derived(shown && settings.value.showUpNext ? trackExtras.queue(shown.id) : []);
+  const queue = $derived(
+    shown && settings.value.showUpNext ? trackExtras.queue(shown.id).slice(0, UP_NEXT_ROWS) : [],
+  );
 
   const CONTEXT_TYPES: Record<string, string> = {
     playlist: "Playlist",
@@ -77,7 +82,7 @@
   const upNextHeader = $derived.by(() => {
     const type = shown?.contextType ? CONTEXT_TYPES[shown.contextType] : undefined;
     if (!type) return "Up next";
-    if (shown?.contextType === "collection") return `Up next · ${type}`;
+    // An empty or missing name (lookup failed or still pending) drops ": name".
     const name = shown?.contextUri ? trackExtras.contextName(shown.contextUri) : undefined;
     return name ? `Up next · ${type}: ${name}` : `Up next · ${type}`;
   });
@@ -89,22 +94,35 @@
     AVR: "Receiver",
     STB: "TV box",
   };
-  const deviceType = $derived(track ? (DEVICE_TYPES[track.deviceType] ?? track.deviceType) : "");
-  const modes = $derived.by(() => {
+  // "Speaker · Shuffle on", under the device name. (On the same line, it
+  // would be cut short by the date and weather beside it at these sizes.)
+  const deviceDetails = $derived.by(() => {
     if (!track) return "";
-    const parts = [track.shuffle ? "Shuffle on" : "Shuffle off"];
+    const parts = [DEVICE_TYPES[track.deviceType] ?? track.deviceType, track.shuffle ? "Shuffle on" : "Shuffle off"];
     if (track.repeat === "track") parts.push("Repeat track");
     else if (track.repeat === "context") parts.push("Repeat on");
-    return parts.join(" · ");
+    return parts.filter(Boolean).join(" · ");
   });
 
   const dateShort = $derived(now.value.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }));
+  const dateLine = $derived(
+    settings.value.showWeather && weather.label ? `${dateShort} · ${weather.label}` : dateShort,
+  );
+
+  // Hidden when the panel overflows, in this order: the ℗ line, the second
+  // up-next row, then the whole up-next block.
+  const fit = fitPanel(3, () => [shown?.id, album?.label, queue.length, upNextHeader, dateLine, settings.value.textSize]);
+  const showLabel = $derived(fit.level < 1);
+  const upNextRows = $derived(fit.level < 2 ? queue : queue.slice(0, 1));
+  const showUpNext = $derived(fit.level < 3 && queue.length > 0);
+
+  const u = (n: number) => `calc(${n} * var(--u))`;
 </script>
 
 <InfoFrame palette={palette.value}>
   <InfoCover coverUrl={cover.url} />
 
-  <div class="h-[5px] w-full shrink-0" style="background: {palette.value.track}; transition: background 0.9s ease;">
+  <div class="w-full shrink-0" style="height: {u(8)}; background: {palette.value.track}; transition: background 0.9s ease;">
     <div
       class="h-full"
       style="width: {fraction * 100}%; background: {palette.value.accent}; transition: background 0.9s ease, width {playback.isPlaying ? 1 : 0}s linear;"
@@ -112,13 +130,14 @@
   </div>
 
   <div
-    class="flex min-h-0 flex-1 flex-col"
-    style="padding: 30px 36px 32px; opacity: {fading ? 0 : 1}; transform: translateY({fading ? 10 : 0}px); transition: opacity 0.4s ease, transform 0.45s ease;"
+    bind:this={fit.panel}
+    class="flex min-h-0 flex-1 flex-col overflow-hidden"
+    style="padding: {u(28)} {u(32)}; opacity: {fading ? 0 : 1}; transform: translateY({u(fading ? 10 : 0)}); transition: opacity 0.4s ease, transform 0.45s ease;"
   >
     {#if shown}
       <div
-        class="flex items-baseline justify-between gap-3 uppercase"
-        style="font-size: 15px; font-weight: 700; letter-spacing: 0.14em; color: {palette.value.accent}; transition: color 0.9s ease;"
+        class="flex shrink-0 items-baseline justify-between uppercase"
+        style="gap: {u(12)}; font-size: {u(20)}; font-weight: 700; letter-spacing: 0.1em; line-height: 1.2; color: {palette.value.accent}; transition: color 0.9s ease;"
       >
         <span class="truncate">{shown.albumName}{year ? ` · ${year}` : ""}</span>
         {#if shown.trackNumber && shown.totalTracks}
@@ -126,15 +145,14 @@
         {/if}
       </div>
 
-      <div class="flex min-w-0 items-center gap-4" style="margin-top: 12px;">
-        <div
-          class="min-w-0 flex-1 truncate"
-          style="font-size: 52px; font-weight: 900; letter-spacing: -0.025em; line-height: 1.22;"
-        >
-          {shown.name}
+      <div class="flex min-w-0 shrink-0 items-center" style="margin-top: {u(8)}; gap: {u(16)};">
+        <div class="min-w-0 flex-1 overflow-hidden">
+          <div class="whitespace-nowrap" style="font-size: {u(76)}; font-weight: 900; letter-spacing: -0.025em; line-height: 1.15;" use:marquee={shown.name}>
+            {shown.name}
+          </div>
         </div>
         {#if liked}
-          <svg viewBox="0 0 24 24" width="30" height="30" class="shrink-0" style="color: {palette.value.accent};" aria-label="In your Liked Songs">
+          <svg viewBox="0 0 24 24" class="shrink-0" style="width: {u(40)}; height: {u(40)}; color: {palette.value.accent};" aria-label="In your Liked Songs">
             <path
               fill="currentColor"
               d="M12 21s-7.5-4.6-10-9.3C.4 8.4 2.3 4.5 6 4.5c2.2 0 3.4 1.2 6 3.6 2.6-2.4 3.8-3.6 6-3.6 3.7 0 5.6 3.9 4 7.2C19.5 16.4 12 21 12 21z"
@@ -143,35 +161,34 @@
         {/if}
       </div>
 
-      <div style="margin-top: 6px; font-size: 23px; font-weight: 500; line-height: 1.3; color: rgba(255,255,255,0.8); text-wrap: pretty;">
-        {shown.artist}
+      <div class="shrink-0 overflow-hidden" style="margin-top: {u(4)};">
+        <div class="whitespace-nowrap" style="font-size: {u(32)}; font-weight: 500; line-height: 1.3; color: rgba(255,255,255,0.8);" use:marquee={shown.artist}>
+          {shown.artist}
+        </div>
       </div>
 
-      {#if album?.label}
-        <div style="margin-top: 8px; font-size: 14px; font-weight: 400; color: rgba(255,255,255,0.5);">
+      {#if showLabel && album?.label}
+        <div class="shrink-0 truncate" style="margin-top: {u(8)}; font-size: {u(18)}; line-height: 1.3; color: rgba(255,255,255,0.7);">
           ℗ {year} {album.label}
         </div>
       {/if}
 
       <div class="flex-1"></div>
 
-      {#if queue.length > 0}
+      {#if showUpNext}
         <div
-          class="flex flex-col"
-          style="padding: 14px 0; gap: 7px; border-top: 1px solid rgba(255,255,255,0.14); border-bottom: 1px solid rgba(255,255,255,0.14);"
+          class="flex shrink-0 flex-col"
+          style="padding: {u(14)} 0; gap: {u(8)}; border-top: 1px solid rgba(255,255,255,0.2); border-bottom: 1px solid rgba(255,255,255,0.2);"
         >
-          <div
-            class="truncate uppercase"
-            style="font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);"
-          >
+          <div class="truncate uppercase" style="font-size: {u(18)}; font-weight: 700; letter-spacing: 0.1em; line-height: 1.2; color: rgba(255,255,255,0.7);">
             {upNextHeader}
           </div>
-          {#each queue as item, i}
-            <div class="grid" style="grid-template-columns: 22px minmax(0, 1fr); font-size: 17px; line-height: 1.3;">
-              <span class="tabular-nums" style="color: rgba(255,255,255,0.4);">{i + 1}</span>
+          {#each upNextRows as item, i}
+            <div class="grid" style="grid-template-columns: {u(32)} minmax(0, 1fr); font-size: {u(24)}; line-height: 1.3;">
+              <span class="tabular-nums" style="color: rgba(255,255,255,0.55);">{i + 1}</span>
               <span class="truncate" style="font-weight: 600;">
                 {item.name}
-                {#if item.artist}<span style="font-weight: 400; color: rgba(255,255,255,0.6);">— {item.artist}</span>{/if}
+                {#if item.artist}<span style="font-weight: 400; color: rgba(255,255,255,0.7);">— {item.artist}</span>{/if}
               </span>
             </div>
           {/each}
@@ -180,40 +197,27 @@
     {/if}
 
     {#if track}
-      <div class="flex items-end justify-between gap-4" style="margin-top: 18px;">
-        <div class="flex min-w-0 flex-col" style="gap: 7px;">
+      <div class="flex shrink-0 items-end justify-between" style="margin-top: {u(16)}; gap: {u(16)};">
+        <div class="flex min-w-0 flex-col" style="gap: {u(4)}; font-size: {u(22)}; line-height: 1.25;">
           {#if track.deviceName}
-            <span class="flex min-w-0 items-center gap-2.5" style="font-size: 17px; font-weight: 600;">
-              <span class="shrink-0 rounded-full" style="width: 10px; height: 10px; background: {palette.value.accent};"></span>
-              <span class="truncate">
-                {track.deviceName}
-                {#if deviceType}<span style="font-weight: 400; color: rgba(255,255,255,0.6);">· {deviceType}</span>{/if}
-              </span>
+            <span class="flex min-w-0 items-center" style="gap: {u(10)}; font-weight: 600;">
+              <span class="shrink-0 rounded-full" style="width: {u(12)}; height: {u(12)}; background: {palette.value.accent};"></span>
+              <span class="truncate">{track.deviceName}</span>
             </span>
           {/if}
-          <span class="flex items-center gap-2.5 tabular-nums" style="font-size: 14px; color: rgba(255,255,255,0.6);">
-            {#if track.volumePercent !== undefined}
-              <span class="rounded-[2px]" style="width: 100px; height: 4px; background: rgba(255,255,255,0.2);">
-                <span class="block h-full rounded-[2px]" style="width: {track.volumePercent}%; background: rgba(255,255,255,0.8);"></span>
-              </span>
-              <span>{track.volumePercent}%</span>
-              <span>·</span>
-            {/if}
-            <span>{modes}</span>
-          </span>
-          <span class="tabular-nums" style="font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.6);">
+          {#if deviceDetails}
+            <span class="truncate" style="color: rgba(255,255,255,0.7);">{deviceDetails}</span>
+          {/if}
+          <span class="tabular-nums" style="font-weight: 500; color: rgba(255,255,255,0.7);">
             {formatTrackTime(progressMs)} / {formatTrackTime(track.durationMs)}
           </span>
         </div>
 
-        <div class="flex shrink-0 flex-col items-end text-right" style="gap: 5px;">
+        <div class="flex shrink-0 flex-col items-end text-right" style="gap: {u(4)};">
           {#if settings.value.ambientClockEnabled}
-            <span class="tabular-nums" style="font-size: 38px; font-weight: 300; line-height: 1;">{formatClock(now.value)}</span>
+            <span class="tabular-nums" style="font-size: {u(72)}; font-weight: 300; line-height: 0.9;">{formatClock(now.value)}</span>
           {/if}
-          <span style="font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.75);">{dateShort}</span>
-          {#if settings.value.showWeather && weather.label}
-            <span style="font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.6);">{weather.label}</span>
-          {/if}
+          <span style="font-size: {u(22)}; font-weight: 500; line-height: 1.25; color: rgba(255,255,255,0.75);">{dateLine}</span>
         </div>
       </div>
     {/if}

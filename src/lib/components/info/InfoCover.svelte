@@ -9,9 +9,13 @@
   let { coverUrl, dim = false, children }: Props = $props();
 </script>
 
-<!-- 600x600 square at the top. Outgoing and incoming covers overlap while
-     they crossfade, as in CoverArt.svelte. -->
-<div class="relative shrink-0 overflow-hidden bg-black" style="width: 600px; height: 600px;">
+<!-- 600u square across the top, always full-bleed: the Default/Fit cover
+     style setting only applies to the classic layout. Outgoing and incoming
+     covers overlap while they crossfade, as in CoverArt.svelte. -->
+<div
+  class="relative shrink-0 overflow-hidden bg-black"
+  style="width: calc(600 * var(--u0)); height: calc(600 * var(--u0));"
+>
   {#if coverUrl}
     {#key coverUrl}
       <img
