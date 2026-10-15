@@ -9,6 +9,8 @@ import type { TrackInfo } from "../tauri/types";
 
 let currentTrack = $state<TrackInfo | null>(null);
 let isPlaying = $state(false);
+// Last device seen playing — Standby's "Speaker" line.
+let lastDeviceName = $state("");
 
 // While Spotify is rate limiting us (429), no request goes out before this
 // (epoch ms). Persisted so an app restart mid-lockout doesn't immediately
@@ -41,6 +43,9 @@ export const playback = {
   get isPlaying() {
     return isPlaying;
   },
+  get lastDeviceName() {
+    return lastDeviceName;
+  },
   // Epoch ms until which Spotify is rate limiting us, or 0.
   get rateLimitedUntil() {
     return rateLimitedUntil;
@@ -49,6 +54,13 @@ export const playback = {
 
 export function isRateLimited(): boolean {
   return Date.now() < rateLimitedUntil;
+}
+
+// For the on-demand lookups (track-extras.svelte.ts): a 429 there locks out
+// the poll too, since it's the same quota.
+export function noteRateLimit(retryAfterSecs: number): void {
+  const until = Date.now() + retryAfterSecs * 1000;
+  if (until > rateLimitedUntil) setRateLimit(until);
 }
 
 // Poll cadence. Spotify's development-mode quota (shared by every app on the
@@ -95,6 +107,7 @@ async function poll(): Promise<number> {
 
     currentTrack = result.track;
     isPlaying = result.track.isPlaying;
+    if (result.track.deviceName) lastDeviceName = result.track.deviceName;
     if (isPlaying) return playingDelay(result.track);
   } catch {
     // Transport failure or a Spotify-side error — transient, and not evidence

@@ -37,6 +37,13 @@ export interface AppSettings {
   accentColor: string;
   controlsEnabled: boolean;
   progressBarEnabled: boolean;
+  // Portrait info layout (cover on top, cover-coloured info panel below) for
+  // Now Playing and the Library Covers idle mode.
+  infoLayoutEnabled: boolean;
+  burnInShift: boolean;
+  showUpNext: boolean;
+  showWeather: boolean;
+  weatherLocation: string; // "lat,lon" or a place name; empty hides the weather
 }
 
 const DEFAULTS: AppSettings = {
@@ -62,6 +69,11 @@ const DEFAULTS: AppSettings = {
   accentColor: "#1DB954",
   controlsEnabled: true,
   progressBarEnabled: true,
+  infoLayoutEnabled: true,
+  burnInShift: true,
+  showUpNext: true,
+  showWeather: true,
+  weatherLocation: "",
 };
 
 const store = persisted<AppSettings>("appSettings", DEFAULTS);

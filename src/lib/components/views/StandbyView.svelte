@@ -4,6 +4,7 @@
   import { settings } from "$lib/state/settings.svelte";
   import VideoArtView from "./VideoArtView.svelte";
   import LibraryCoversView from "./LibraryCoversView.svelte";
+  import StandbyInfoView from "$lib/components/info/StandbyInfoView.svelte";
   import PictureFrameView from "./PictureFrameView.svelte";
   import IdleClock from "$lib/components/IdleClock.svelte";
   import PlaybackControls from "$lib/components/PlaybackControls.svelte";
@@ -34,19 +35,25 @@
   });
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="relative h-full w-full" onmouseenter={() => (hovering = true)} onmouseleave={() => (hovering = false)}>
-  {#if standby.activeMode === "videoart"}
-    <VideoArtView />
-  {:else if standby.activeMode === "librarycovers"}
-    <LibraryCoversView />
-  {:else if standby.activeMode === "pictureframe"}
-    <PictureFrameView />
-  {/if}
+<!-- The info layout is display-only: no hover controls, and it has its own
+     clock. -->
+{#if standby.activeMode === "librarycovers" && settings.value.infoLayoutEnabled}
+  <StandbyInfoView />
+{:else}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="relative h-full w-full" onmouseenter={() => (hovering = true)} onmouseleave={() => (hovering = false)}>
+    {#if standby.activeMode === "videoart"}
+      <VideoArtView />
+    {:else if standby.activeMode === "librarycovers"}
+      <LibraryCoversView />
+    {:else if standby.activeMode === "pictureframe"}
+      <PictureFrameView />
+    {/if}
 
-  {#if settings.value.controlsEnabled}
-    <PlaybackControls {hovering} />
-  {/if}
+    {#if settings.value.controlsEnabled}
+      <PlaybackControls {hovering} />
+    {/if}
 
-  <IdleClock />
-</div>
+    <IdleClock />
+  </div>
+{/if}

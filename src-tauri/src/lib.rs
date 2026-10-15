@@ -42,6 +42,60 @@ struct TrackInfo {
     is_playing:  bool,
     progress_ms: u64,
     duration_ms: u64,
+    // Extra player state for the info layout. All come with the same
+    // GET /me/player poll, so they cost no extra requests.
+    album_id:       String,
+    release_date:   String,
+    track_number:   u32,
+    total_tracks:   u32,
+    #[serde(skip_serializing_if = "Option::is_none")] context_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")] context_uri:  Option<String>,
+    device_name:    String,
+    device_type:    String,
+    #[serde(skip_serializing_if = "Option::is_none")] volume_percent: Option<u32>,
+    shuffle:        bool,
+    repeat:         String,
+}
+
+// Fetched once per track/album/context change rather than on every poll.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AlbumDetails {
+    label:     String,
+    // The ℗ (phonographic) copyright line, if the album has one.
+    #[serde(skip_serializing_if = "Option::is_none")] p_line: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct QueueItem {
+    name:   String,
+    artist: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecentTrack {
+    name:      String,
+    artist:    String,
+    played_at: String,
+}
+
+// Shared shape for the on-demand lookups: `value` on success, otherwise
+// `error` (with `retry_after_secs` when Spotify rate limited us).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LookupResult<T: Serialize> {
+    #[serde(skip_serializing_if = "Option::is_none")] value: Option<T>,
+    #[serde(skip_serializing_if = "Option::is_none")] error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")] retry_after_secs: Option<u64>,
+}
+
+impl<T: Serialize> LookupResult<T> {
+    fn ok(value: T) -> Self { Self { value: Some(value), error: None, retry_after_secs: None } }
+    fn err(error: String, retry_after_secs: Option<u64>) -> Self {
+        Self { value: None, error: Some(error), retry_after_secs }
+    }
 }
 
 #[derive(Serialize)]
@@ -355,7 +409,7 @@ async fn spotify_start_auth(app: AppHandle, state: State<'_, AppState>) -> Resul
     *state.auth_state.lock().unwrap()    = Some(auth_st.clone());
     *state.code_verifier.lock().unwrap() = Some(verifier);
 
-    let scope = "user-read-private user-read-email user-read-currently-playing user-read-playback-state user-library-read user-modify-playback-state";
+    let scope = "user-read-private user-read-email user-read-currently-playing user-read-playback-state user-library-read user-modify-playback-state user-read-recently-played";
     let url = format!(
         "https://accounts.spotify.com/authorize?client_id={}&response_type=code&redirect_uri={}&scope={}&state={}&code_challenge={}&code_challenge_method=S256&show_dialog=false",
         client_id(&app),
@@ -386,7 +440,9 @@ async fn spotify_get_current_track(app: AppHandle, state: State<'_, AppState>) -
         return Ok(TrackResult { retry_after_secs: None, track: None, error: Some("Not authenticated".into()) });
     };
     let resp = reqwest::Client::new()
-        .get("https://api.spotify.com/v1/me/player/currently-playing")
+        // /me/player rather than /me/player/currently-playing: same cost, but
+        // it also carries the device, volume, shuffle and repeat state.
+        .get("https://api.spotify.com/v1/me/player")
         .header("Authorization", format!("Bearer {token}"))
         .send().await.map_err(|e| e.to_string())?;
 
@@ -427,6 +483,17 @@ async fn spotify_get_current_track(app: AppHandle, state: State<'_, AppState>) -
             is_playing:  data["is_playing"].as_bool().unwrap_or(false),
             progress_ms: data["progress_ms"].as_u64().unwrap_or(0),
             duration_ms: item["duration_ms"].as_u64().unwrap_or(0),
+            album_id:       item["album"]["id"].as_str().unwrap_or("").to_string(),
+            release_date:   item["album"]["release_date"].as_str().unwrap_or("").to_string(),
+            track_number:   item["track_number"].as_u64().unwrap_or(0) as u32,
+            total_tracks:   item["album"]["total_tracks"].as_u64().unwrap_or(0) as u32,
+            context_type:   data["context"]["type"].as_str().map(|s| s.to_string()),
+            context_uri:    data["context"]["uri"].as_str().map(|s| s.to_string()),
+            device_name:    data["device"]["name"].as_str().unwrap_or("").to_string(),
+            device_type:    data["device"]["type"].as_str().unwrap_or("").to_string(),
+            volume_percent: data["device"]["volume_percent"].as_u64().map(|v| v as u32),
+            shuffle:        data["shuffle_state"].as_bool().unwrap_or(false),
+            repeat:         data["repeat_state"].as_str().unwrap_or("off").to_string(),
         }),
         error: None,
     })
@@ -476,6 +543,166 @@ async fn spotify_next_track(app: AppHandle, state: State<'_, AppState>) -> Resul
 #[tauri::command]
 async fn spotify_previous_track(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     spotify_player_command(&app, &state, reqwest::Method::POST, "previous").await
+}
+
+// GET a Spotify Web API path for the on-demand lookups below, mapping 429s
+// to a Retry-After so the frontend can fold them into the shared lockout.
+async fn spotify_get_json(
+    app: &AppHandle,
+    state: &State<'_, AppState>,
+    path: &str,
+) -> Result<serde_json::Value, (String, Option<u64>)> {
+    let Some(token) = valid_token(app, state).await else {
+        return Err(("Not authenticated".into(), None));
+    };
+    let resp = reqwest::Client::new()
+        .get(format!("https://api.spotify.com/v1/{path}"))
+        .header("Authorization", format!("Bearer {token}"))
+        .send().await.map_err(|e| (e.to_string(), None))?;
+    if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let secs = resp.headers().get(reqwest::header::RETRY_AFTER)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .unwrap_or(60);
+        return Err(("Rate limited".into(), Some(secs)));
+    }
+    if !resp.status().is_success() {
+        return Err((format!("Spotify returned {}", resp.status()), None));
+    }
+    resp.json().await.map_err(|e| (e.to_string(), None))
+}
+
+fn join_artists(v: &serde_json::Value) -> String {
+    v.as_array()
+        .map(|a| a.iter().filter_map(|x| x["name"].as_str()).collect::<Vec<_>>().join(", "))
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+async fn spotify_get_album_details(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    album_id: String,
+) -> Result<LookupResult<AlbumDetails>, String> {
+    let data = match spotify_get_json(&app, &state, &format!("albums/{}", urlencoding::encode(&album_id))).await {
+        Ok(d) => d,
+        Err((e, retry)) => return Ok(LookupResult::err(e, retry)),
+    };
+    let p_line = data["copyrights"].as_array().and_then(|c| {
+        c.iter().find(|x| x["type"] == "P").and_then(|x| x["text"].as_str()).map(|s| s.to_string())
+    });
+    Ok(LookupResult::ok(AlbumDetails {
+        label: data["label"].as_str().unwrap_or("").to_string(),
+        p_line,
+    }))
+}
+
+#[tauri::command]
+async fn spotify_is_track_saved(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    track_id: String,
+) -> Result<LookupResult<bool>, String> {
+    match spotify_get_json(&app, &state, &format!("me/tracks/contains?ids={}", urlencoding::encode(&track_id))).await {
+        Ok(d) => Ok(LookupResult::ok(d[0].as_bool().unwrap_or(false))),
+        Err((e, retry)) => Ok(LookupResult::err(e, retry)),
+    }
+}
+
+#[tauri::command]
+async fn spotify_get_queue(app: AppHandle, state: State<'_, AppState>) -> Result<LookupResult<Vec<QueueItem>>, String> {
+    let data = match spotify_get_json(&app, &state, "me/player/queue").await {
+        Ok(d) => d,
+        Err((e, retry)) => return Ok(LookupResult::err(e, retry)),
+    };
+    let items = data["queue"].as_array().map(|q| {
+        q.iter().take(3).map(|t| QueueItem {
+            name:   t["name"].as_str().unwrap_or("").to_string(),
+            // Podcast episodes have a show rather than artists.
+            artist: if t["artists"].is_array() { join_artists(&t["artists"]) }
+                    else { t["show"]["name"].as_str().unwrap_or("").to_string() },
+        }).collect()
+    }).unwrap_or_default();
+    Ok(LookupResult::ok(items))
+}
+
+// Name of the playlist/album/artist/show being played from, given its
+// spotify:<type>:<id> URI. Collections and other contexts have no endpoint.
+#[tauri::command]
+async fn spotify_get_context_name(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    context_uri: String,
+) -> Result<LookupResult<String>, String> {
+    let parts: Vec<&str> = context_uri.split(':').collect();
+    let path = match parts.as_slice() {
+        ["spotify", "playlist", id] => format!("playlists/{}?fields=name", urlencoding::encode(id)),
+        ["spotify", "album", id] => format!("albums/{}", urlencoding::encode(id)),
+        ["spotify", "artist", id] => format!("artists/{}", urlencoding::encode(id)),
+        ["spotify", "show", id] => format!("shows/{}", urlencoding::encode(id)),
+        _ => return Ok(LookupResult::err("Unsupported context".into(), None)),
+    };
+    match spotify_get_json(&app, &state, &path).await {
+        Ok(d) => Ok(LookupResult::ok(d["name"].as_str().unwrap_or("").to_string())),
+        Err((e, retry)) => Ok(LookupResult::err(e, retry)),
+    }
+}
+
+// Needs the user-read-recently-played scope; tokens from before it was added
+// get a 403 here until the user logs in again.
+#[tauri::command]
+async fn spotify_get_last_played(app: AppHandle, state: State<'_, AppState>) -> Result<LookupResult<RecentTrack>, String> {
+    let data = match spotify_get_json(&app, &state, "me/player/recently-played?limit=1").await {
+        Ok(d) => d,
+        Err((e, retry)) => return Ok(LookupResult::err(e, retry)),
+    };
+    let item = &data["items"][0];
+    if item.is_null() { return Ok(LookupResult::err("Nothing played recently".into(), None)); }
+    Ok(LookupResult::ok(RecentTrack {
+        name:      item["track"]["name"].as_str().unwrap_or("").to_string(),
+        artist:    join_artists(&item["track"]["artists"]),
+        played_at: item["played_at"].as_str().unwrap_or("").to_string(),
+    }))
+}
+
+// Open-Meteo (no API key). `location` is "lat,lon" or a place name, which is
+// geocoded first. Returns the temperature and WMO weather code as-is; the
+// frontend turns the code into words.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WeatherNow {
+    temperature:  f64,
+    weather_code: u32,
+}
+
+#[tauri::command]
+async fn get_weather(location: String) -> Result<WeatherNow, String> {
+    let client = reqwest::Client::new();
+    let coords: Option<(f64, f64)> = location.split_once(',')
+        .and_then(|(a, b)| Some((a.trim().parse().ok()?, b.trim().parse().ok()?)));
+    let (lat, lon) = match coords {
+        Some(c) => c,
+        None => {
+            let geo: serde_json::Value = client
+                .get(format!("https://geocoding-api.open-meteo.com/v1/search?count=1&name={}", urlencoding::encode(location.trim())))
+                .send().await.map_err(|e| e.to_string())?
+                .json().await.map_err(|e| e.to_string())?;
+            let r = &geo["results"][0];
+            match (r["latitude"].as_f64(), r["longitude"].as_f64()) {
+                (Some(lat), Some(lon)) => (lat, lon),
+                _ => return Err(format!("Unknown location: {location}")),
+            }
+        }
+    };
+    let data: serde_json::Value = client
+        .get(format!("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code"))
+        .send().await.map_err(|e| e.to_string())?
+        .json().await.map_err(|e| e.to_string())?;
+    let current = &data["current"];
+    match (current["temperature_2m"].as_f64(), current["weather_code"].as_u64()) {
+        (Some(temperature), Some(code)) => Ok(WeatherNow { temperature, weather_code: code as u32 }),
+        _ => Err("No current weather in response".into()),
+    }
 }
 
 #[tauri::command]
@@ -1173,6 +1400,12 @@ pub fn run() {
             spotify_previous_track,
             spotify_get_random_album,
             spotify_get_saved_albums,
+            spotify_get_album_details,
+            spotify_is_track_saved,
+            spotify_get_queue,
+            spotify_get_context_name,
+            spotify_get_last_played,
+            get_weather,
             toggle_fullscreen,
             minimize_window,
             close_app,

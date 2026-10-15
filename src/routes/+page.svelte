@@ -10,6 +10,7 @@
   import PlayerView from "$lib/components/views/PlayerView.svelte";
   import StandbyView from "$lib/components/views/StandbyView.svelte";
   import WidgetView from "$lib/components/views/WidgetView.svelte";
+  import NowPlayingInfoView from "$lib/components/info/NowPlayingInfoView.svelte";
   import SettingsModal from "$lib/components/settings/SettingsModal.svelte";
   import RateLimitNotice from "$lib/components/RateLimitNotice.svelte";
   import { isSettingsOnly } from "$lib/utils/settings-only";
@@ -61,6 +62,8 @@
     <LoginView />
   {:else if widget.enabled}
     <WidgetView />
+  {:else if playback.isPlaying && settings.value.infoLayoutEnabled}
+    <NowPlayingInfoView />
   {:else if playback.isPlaying}
     <PlayerView />
   {:else}

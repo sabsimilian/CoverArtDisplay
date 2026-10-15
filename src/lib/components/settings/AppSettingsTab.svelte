@@ -263,6 +263,60 @@
     />
   </div>
 
+  <div class="mb-4 flex items-center justify-between py-1">
+    <label for="info-layout-toggle" class="font-medium text-white">
+      Info Layout (Now Playing / Library Covers)
+    </label>
+    <ToggleSwitch
+      id="info-layout-toggle"
+      checked={settings.value.infoLayoutEnabled}
+      onchange={(checked) => update({ infoLayoutEnabled: checked })}
+    />
+  </div>
+
+  {#if settings.value.infoLayoutEnabled}
+    <div class="mb-4 flex items-center justify-between py-1">
+      <label for="burn-in-toggle" class="font-medium text-white">Burn-in Shift</label>
+      <ToggleSwitch
+        id="burn-in-toggle"
+        checked={settings.value.burnInShift}
+        onchange={(checked) => update({ burnInShift: checked })}
+      />
+    </div>
+
+    <div class="mb-4 flex items-center justify-between py-1">
+      <label for="up-next-toggle" class="font-medium text-white">Show Up Next</label>
+      <ToggleSwitch
+        id="up-next-toggle"
+        checked={settings.value.showUpNext}
+        onchange={(checked) => update({ showUpNext: checked })}
+      />
+    </div>
+
+    <div class="mb-4 flex items-center justify-between py-1">
+      <label for="weather-toggle" class="font-medium text-white">Show Weather</label>
+      <ToggleSwitch
+        id="weather-toggle"
+        checked={settings.value.showWeather}
+        onchange={(checked) => update({ showWeather: checked })}
+      />
+    </div>
+
+    {#if settings.value.showWeather}
+      <div class="mb-4 flex items-center justify-between gap-4 py-1">
+        <label for="weather-location" class="shrink-0 font-medium text-white">Weather Location</label>
+        <input
+          id="weather-location"
+          type="text"
+          placeholder="City, or lat,lon"
+          class="w-56 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:border-[var(--accent-color)] focus:outline-none"
+          value={settings.value.weatherLocation}
+          onchange={(e) => update({ weatherLocation: e.currentTarget.value.trim() })}
+        />
+      </div>
+    {/if}
+  {/if}
+
   <div class="mt-2.5 flex items-center justify-between border-t border-[#333] pt-2.5">
     <div class="text-white/60">Version: {appVersion}</div>
     <button
