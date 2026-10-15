@@ -75,7 +75,7 @@ const DEFAULTS: AppSettings = {
   accentColor: "#1DB954",
   controlsEnabled: true,
   progressBarEnabled: true,
-  infoLayoutEnabled: true,
+  infoLayoutEnabled: false,
   burnInShift: true,
   showUpNext: true,
   showWeather: true,

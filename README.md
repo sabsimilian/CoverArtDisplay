@@ -64,6 +64,14 @@ An optional ambient clock can overlay any idle mode.
   <img src="docs/screenshots/idle-video-art.png" width="380" alt="Video Art idle mode with the ambient clock" />
 </p>
 
+**Info Layout (portrait displays)**
+An opt-in layout for a dedicated portrait screen seen from across the room (built on a 7" 600×1076 panel). The cover sits on top, edge to edge. Below it, a panel coloured from the cover shows the track, album, year and track number, a ♥ for Liked Songs, the next two in the queue with the playlist name, the playing device, the clock, the date and the weather. Library Covers gets a matching standby screen with a large clock and the last played track. It's display-only (no playback controls), scales with the window width, and drops the least important rows rather than shrinking text when space runs out. Turn it on in App Settings → Info Layout, where you'll also find Text Size, Burn-in Shift, Show Up Next and Weather Location (a city or `lat,lon`, via [Open-Meteo](https://open-meteo.com/), no key needed). The playlist name and "Last played" need two extra Spotify permissions, so log out and back in once after updating.
+
+<p align="center">
+  <img src="docs/screenshots/info-layout-now-playing.png" width="300" alt="Info Layout: now playing" />
+  <img src="docs/screenshots/info-layout-standby.png" width="300" alt="Info Layout: standby with a large clock" />
+</p>
+
 **Deep customization**
 Accent color, metadata background style (solid color / color extracted from the cover / the cover art itself, blurred and extended), transparency, text color and opacity, font, and more — all through an in-app settings window. Also available as a standalone popup window when running in Widget Mode.
 
